@@ -70,7 +70,12 @@ def main():
     work = resolve_workdir(cmd, cwd)
 
     # PORTA: so age em projetos geridos pelo plugin. Sem marca -> passa (fail-open).
-    if gate.managed_project(work) is None:
+    fvdata = gate.managed_project(work)
+    if fvdata is None:
+        sys.exit(0)
+    # O Exit Lock so morde quando o projeto esta "active" (ha camada de testes que
+    # carimba verde). Em "bootstrapping" (sem testes ainda) fica em espera -> passa.
+    if fvdata.get("status") != "active":
         sys.exit(0)
 
     try:

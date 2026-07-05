@@ -33,7 +33,7 @@ def env():
 def sh(args):
     return subprocess.run(args, capture_output=True, text=True, env=env())
 
-def mk_repo(name, managed=True, nest=None):
+def mk_repo(name, managed=True, nest=None, status="active"):
     """Repo git com app.py + README.md committed. Se nest, o .framework-version fica
     no dir PAI e o repo git e' o subdir (replica a topologia do FA)."""
     base = os.path.join(root, name)
@@ -42,7 +42,7 @@ def mk_repo(name, managed=True, nest=None):
     fvdir = base if nest else repo
     if managed:
         fv = {"framework": "bulletproof", "version": "0.2", "plugin": "bulletproof",
-              "status": "active", "stacks": ["python"], "tiers": [1, 2]}
+              "status": status, "stacks": ["python"], "tiers": [1, 2]}
     else:  # legado FA: v0.1 SEM o marcador "plugin"
         fv = {"framework": "bulletproof", "version": "0.1", "tiers": [1, 2]}
     with open(os.path.join(fvdir, ".framework-version"), "w") as f:
@@ -121,6 +121,11 @@ print("\n[G] topologia FA: git em platform/, .framework-version um nivel acima")
 rG = mk_repo("fa_like", nest="platform"); dirty_code(rG)
 rc, err = run_guard(rG, cmd=("git -C %s commit -m x" % rG), cwd=rG)
 check("porta sobe a arvore e o Exit Lock morde (exit 2)", rc == 2)
+
+print("\n[H] projeto gerido mas em bootstrapping (sem testes ainda) -> Exit Lock EM ESPERA")
+rH = mk_repo("boot1", status="bootstrapping"); dirty_code(rH)
+rc, err = run_guard(rH)
+check("codigo sujo mas passa (exit 0): em espera ate status active", rc == 0)
 
 print("\n[F] fail-open")
 rc, _ = run_guard(r3, cmd="git status")

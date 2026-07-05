@@ -16,23 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fv as gate  # a porta do marcador
-
-# manifestos que denunciam a presenca de um stack (para o aviso de drift)
-STACK_MANIFESTS = {
-    "node": ["package.json"],
-    "python": ["pyproject.toml", "requirements.txt", "setup.py"],
-    "rust": ["Cargo.toml"],
-    "go": ["go.mod"],
-    "ruby": ["Gemfile"],
-}
-
-
-def detect_present_stacks(root):
-    found = set()
-    for stack, files in STACK_MANIFESTS.items():
-        if any(os.path.isfile(os.path.join(root, f)) for f in files):
-            found.add(stack)
-    return found
+import stacks as stackmod  # detecao de stacks (partilhada com o framework-init)
 
 
 def message(fvdata, root):
@@ -50,7 +34,7 @@ def message(fvdata, root):
     if stacks:
         parts.append("Stacks geridos: %s." % ", ".join(stacks))
     # aviso de drift simples: apareceu um manifesto de um stack nao declarado?
-    drift = detect_present_stacks(root) - set(stacks)
+    drift = set(stackmod.detect(root)) - set(stacks)
     if drift and stacks:
         parts.append("ATENCAO drift: ha manifestos de stack nao declarado (%s). "
                      "Corre /bulletproof:framework-init para estender os testes, senao o "
