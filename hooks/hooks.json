@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/framework-guide.py"],
+            "timeout": 15,
+            "statusMessage": "Bulletproof: a classificar o projeto..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/exit-lock-guard.py"],
+            "timeout": 10,
+            "statusMessage": "Bulletproof: a verificar o carimbo verde..."
+          }
+        ]
+      }
+    ]
+  }
+}

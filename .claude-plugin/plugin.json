@@ -1,0 +1,7 @@
+{
+  "name": "bulletproof",
+  "description": "Disciplina de testes por hooks deterministicos: Guia (SessionStart) e Exit Lock (bloqueia git commit de codigo sem verde). Gated por marcador no .framework-version: so age em projetos adotados pelo plugin, ignora todos os outros.",
+  "version": "0.1.0",
+  "author": { "name": "Rafael" },
+  "keywords": ["testing", "hooks", "quality-gate", "tdd"]
+}
