@@ -13,6 +13,7 @@ Uso: python3 testar.py [dir]   (default: diretorio atual)
 So age em projetos geridos pelo plugin (a porta fv.py).
 Override por env (testes): BULLETPROOF_STATE, BULLETPROOF_LEDGER.
 """
+import json
 import os
 import subprocess
 import sys
@@ -47,6 +48,25 @@ def log_red(root, detail, seed):
                       reason="tests_failed", incident_seed=seed, detail=detail)
     except Exception:
         pass
+
+
+def promote_to_active(root):
+    """No primeiro verde, promove o projeto de 'bootstrapping' para 'active' no
+    .framework-version, armando o Exit Lock. Idempotente (se ja active, no-op).
+    Best-effort: se falhar, o carimbo verde acontece na mesma."""
+    path = os.path.join(root, ".framework-version")
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        if not isinstance(data, dict) or data.get("status") == "active":
+            return False
+        data["status"] = "active"
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        return True
+    except Exception:
+        return False
 
 
 def main(argv):
@@ -92,10 +112,13 @@ def main(argv):
               % (len(failures), len(plan)))
         return 1
 
-    # verde: carimba via mark-green (que regista o test_green no ledger)
+    # verde: promove a 'active' no 1o verde (arma o Exit Lock) e carimba via mark-green
+    promoted = promote_to_active(root)
     subprocess.run(["bash", os.path.join(HERE, "mark-green.sh"), root])
     print("\ntestar: VERDE -- todas as camadas passaram. Verde carimbado; o commit de "
           "codigo passa a ser permitido.")
+    if promoted:
+        print("  projeto promovido a 'active': o Exit Lock passa a policiar os commits de codigo.")
     return 0
 
 
