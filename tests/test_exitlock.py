@@ -33,7 +33,7 @@ def env():
 def sh(args):
     return subprocess.run(args, capture_output=True, text=True, env=env())
 
-def mk_repo(name, managed=True, nest=None, status="active"):
+def mk_repo(name, managed=True, nest=None, status="active", layers=None):
     """Repo git com app.py + README.md committed. Se nest, o .framework-version fica
     no dir PAI e o repo git e' o subdir (replica a topologia do FA)."""
     base = os.path.join(root, name)
@@ -43,6 +43,8 @@ def mk_repo(name, managed=True, nest=None, status="active"):
     if managed:
         fv = {"framework": "bulletproof", "version": "0.2", "plugin": "bulletproof",
               "status": status, "stacks": ["python"], "tiers": [1, 2]}
+        if layers is not None:
+            fv["layers"] = layers
     else:  # legado FA: v0.1 SEM o marcador "plugin"
         fv = {"framework": "bulletproof", "version": "0.1", "tiers": [1, 2]}
     with open(os.path.join(fvdir, ".framework-version"), "w") as f:
@@ -126,6 +128,12 @@ print("\n[H] projeto gerido mas em bootstrapping (sem testes ainda) -> Exit Lock
 rH = mk_repo("boot1", status="bootstrapping"); dirty_code(rH)
 rc, err = run_guard(rH)
 check("codigo sujo mas passa (exit 0): em espera ate status active", rc == 0)
+
+print("\n[I] projeto gerido active mas camada 2 fora das layers ([1]) -> nao morde")
+rI = mk_repo("nolock", layers=[1])
+dirty_code(rI)
+rc, _ = run_guard(rI)
+check("commit passa (exit 0): camada 2 desligada por layers", rc == 0)
 
 print("\n[F] fail-open")
 rc, _ = run_guard(r3, cmd="git status")

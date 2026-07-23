@@ -65,6 +65,26 @@ def root_of(start):
     return os.path.dirname(path) if path else None
 
 
+def layers_of(fvdata):
+    """As camadas ativas de um projeto gerido. O v0.3 usa o campo `layers`; um v0.2
+    legado (so `tiers`, ou sem o campo) mapeia para [1, 2] (o que um projeto gerido
+    tinha de facto). Garante que a 2 nao aparece sem a 1 (a 2 depende da 1)."""
+    if not isinstance(fvdata, dict):
+        return [1, 2]
+    raw = fvdata.get("layers")
+    if isinstance(raw, list) and raw:
+        layers = set()
+        for x in raw:
+            try:
+                layers.add(int(x))
+            except (ValueError, TypeError):
+                pass
+        if 2 in layers:
+            layers.add(1)
+        return sorted(layers) if layers else [1, 2]
+    return [1, 2]
+
+
 if __name__ == "__main__":
     import sys
     where = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()

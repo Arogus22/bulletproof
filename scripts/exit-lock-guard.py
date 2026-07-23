@@ -77,6 +77,10 @@ def main():
     # carimba verde). Em "bootstrapping" (sem testes ainda) fica em espera -> passa.
     if fvdata.get("status") != "active":
         sys.exit(0)
+    # Camada 2 so liga se estiver nas layers ativas (invariante: camada so liga por
+    # layers). Um v0.2 sem layers mapeia para [1, 2], portanto a 2 esta la.
+    if 2 not in gate.layers_of(fvdata):
+        sys.exit(0)
 
     try:
         repo = git(["rev-parse", "--show-toplevel"], work).strip()
