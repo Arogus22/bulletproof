@@ -25,6 +25,42 @@
             "statusMessage": "Bulletproof: a verificar o carimbo verde..."
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/deploy-guard.py"],
+            "timeout": 10,
+            "statusMessage": "Bulletproof: guarda de deploy (camada 3)..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py"],
+            "timeout": 10,
+            "statusMessage": "Bulletproof: guarda de BD de producao (camada 3)..."
+          }
+        ]
+      },
+      {
+        "matcher": "d1",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py"],
+            "timeout": 10,
+            "statusMessage": "Bulletproof: guarda de BD via MCP (camada 3)..."
+          }
+        ]
       }
     ]
   }
