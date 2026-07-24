@@ -16,29 +16,42 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fv as gate  # a porta do marcador
-import stacks as stackmod  # detecao de stacks (partilhada com o framework-init)
+import stacks as stackmod  # detecao de stacks
+import capabilities as capmod  # detecao de capacidades (drift de camadas)
 
 
 def message(fvdata, root):
     status = fvdata.get("status", "active")
     stacks = fvdata.get("stacks", []) or []
+    layers = gate.layers_of(fvdata)
 
     if status == "bootstrapping":
-        return ("Framework adotado, mas ainda SEM camada de testes (status: bootstrapping). "
-                "Decide o stack e corre /bulletproof:framework-init para gerar os testes. "
-                "O Exit Lock fica em espera ate haver verde; ate la os commits nao sao bloqueados.")
+        return ("Framework adotado (camadas %s), ainda SEM verde. Corre /testar; ao primeiro "
+                "verde o projeto passa a 'active' e o Exit Lock arma-se. Ate la os commits de "
+                "codigo nao sao bloqueados. (Falta o stack ou os testes? corre "
+                "/bulletproof:framework-init.)" % layers)
 
-    # status active
-    parts = ["Exit Lock ATIVO (Tier 1): antes de 'git commit' de codigo, o /testar "
-             "tem de carimbar verde, senao o commit e' bloqueado."]
+    parts = ["Camadas ativas: %s. Exit Lock a policiar: 'git commit' de codigo exige um "
+             "verde do /testar." % layers]
+    if 3 in layers:
+        parts.append("Guardas de producao (camada 3) ligadas: publicar e escrever na BD de "
+                     "prod pedem a tua aprovacao.")
     if stacks:
-        parts.append("Stacks geridos: %s." % ", ".join(stacks))
-    # aviso de drift simples: apareceu um manifesto de um stack nao declarado?
-    drift = set(stackmod.detect(root)) - set(stacks)
-    if drift and stacks:
-        parts.append("ATENCAO drift: ha manifestos de stack nao declarado (%s). "
-                     "Corre /bulletproof:framework-init para estender os testes, senao o "
-                     "Exit Lock fica dessincronizado." % ", ".join(sorted(drift)))
+        parts.append("Stacks: %s." % ", ".join(stacks))
+    # drift de stack: apareceu um manifesto de um stack nao declarado?
+    sdrift = set(stackmod.detect(root)) - set(stacks)
+    if sdrift and stacks:
+        parts.append("Drift de stack: apareceu %s; corre /bulletproof:framework-init." %
+                     ", ".join(sorted(sdrift)))
+    # drift de capacidade: um sinal novo (BD/deploy) que ainda nao esta nas camadas
+    try:
+        caps, _ = capmod.detect(root)
+        new_layers = sorted(set(capmod.layers_for(caps)) - set(layers))
+        if new_layers:
+            parts.append("ATENCAO capacidade nova detetada (camada %s por ligar): corre "
+                         "/bulletproof:framework-init para ligar as guardas." % new_layers)
+    except Exception:
+        pass
     return " ".join(parts)
 
 

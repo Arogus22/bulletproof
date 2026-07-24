@@ -72,6 +72,9 @@ cfg = json.load(open(HOOKS))["hooks"]
 check("SessionStart registado", "SessionStart" in cfg)
 check("PreToolUse registado", "PreToolUse" in cfg)
 check("caminhos via ${CLAUDE_PLUGIN_ROOT}", "${CLAUDE_PLUGIN_ROOT}" in open(HOOKS).read())
+_raw = open(HOOKS).read()
+check("guardas registadas (exit-lock + deploy + db)",
+      all(s in _raw for s in ["exit-lock-guard", "deploy-guard", "db-guard"]))
 
 proj = mk_managed_repo()
 
@@ -83,7 +86,7 @@ try:
 except Exception:
     pass
 check("resolve o caminho e corre (rc0)", rc == 0)
-check("injeta contexto Bulletproof (active)", "[Bulletproof]" in ctx and "Exit Lock ATIVO" in ctx)
+check("injeta contexto Bulletproof (active)", "[Bulletproof]" in ctx and "policiar" in ctx)
 
 print("\n[3] PreToolUse (Exit Lock) pela cablagem -> bloqueia commit nao-verde")
 rc, out, err = run_event("PreToolUse",

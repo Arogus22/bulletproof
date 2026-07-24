@@ -45,6 +45,11 @@ legacy = mk("legacy-fa", {"framework": "bulletproof", "version": "0.1", "tiers":
 plain = mk("plain-project")  # sem .framework-version
 subdir = os.path.join(active, "platform")  # subir a arvore a partir de um subdir
 os.makedirs(subdir, exist_ok=True)
+# gerido active com layers [1,2] mas um sinal de D1 novo -> drift de capacidade
+capdrift = mk("managed-cap-drift", {"framework": "bulletproof", "version": "0.3",
+             "plugin": "bulletproof", "status": "active", "layers": [1, 2], "stacks": ["node"]})
+with open(os.path.join(capdrift, "wrangler.toml"), "w") as f:
+    f.write("[[d1_databases]]\nbinding='DB'\n")
 
 def run_fv(path):
     p = subprocess.run(["python3", FV, path], capture_output=True, text=True)
@@ -64,8 +69,8 @@ rc, out = run_fv(subdir);  check("subdir platform/ -> sobe a arvore, porta ABERT
 
 print("\n[2] Guia (framework-guide.py)")
 rc, out = run_guide(boot)
-ok = rc == 0 and out != "" and "bootstrapping" in out and "framework-init" in out
-check("bootstrapping -> avisa p/ decidir stack + framework-init", ok)
+ok = rc == 0 and out != "" and "verde" in out and "framework-init" in out
+check("bootstrapping -> avisa p/ primeiro verde + framework-init", ok)
 try:
     j = json.loads(out); has_ctx = "additionalContext" in j.get("hookSpecificOutput", {})
 except Exception:
@@ -73,12 +78,17 @@ except Exception:
 check("bootstrapping -> output e' JSON valido de SessionStart", has_ctx)
 
 rc, out = run_guide(active)
-ok = rc == 0 and "Exit Lock ATIVO" in out and "python" in out and "drift" not in out
-check("active (stack bate certo) -> Exit Lock ATIVO, sem aviso de drift", ok)
+ok = (rc == 0 and "policiar" in out and "python" in out and "drift" not in out
+      and "capacidade nova" not in out)
+check("active (stack bate certo) -> Exit Lock a policiar, sem avisos", ok)
 
 rc, out = run_guide(drift)
-ok = rc == 0 and "drift" in out and "node" in out
-check("active + manifesto nao declarado -> aviso de drift (node)", ok)
+ok = rc == 0 and "Drift de stack" in out and "node" in out
+check("active + manifesto de stack nao declarado -> drift de stack (node)", ok)
+
+rc, out = run_guide(capdrift)
+ok = rc == 0 and "capacidade nova" in out and "3" in out
+check("active + capacidade nova (D1) -> avisa camada 3 por ligar", ok)
 
 rc, out = run_guide(plain)
 check("nao-gerido (sem marca) -> SILENCIO total (sem output, rc0)", rc == 0 and out == "")
