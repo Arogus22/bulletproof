@@ -51,7 +51,7 @@
         ]
       },
       {
-        "matcher": "d1",
+        "matcher": "d1|mcp__.*cloudflare",
         "hooks": [
           {
             "type": "command",
