@@ -8,6 +8,13 @@ sem o marcador, como o FA legado ou qualquer outro, passa SEMPRE. Commits so de
 docs/config nao sao bloqueados. Fail-open: qualquer erro ou ambiente inesperado ->
 NAO bloqueia (sai com codigo != 2).
 
+Ficheiros NOVOS contam. O hook corre ANTES do comando, por isso num
+`git add -A && git commit` o codigo novo ainda esta' por adicionar quando a guarda olha;
+o `git diff HEAD` nao o ve. A guarda le a linha (cmdparse): se ha' um `git add` antes do
+commit, junta ao que "este commit toca" o codigo por adicionar que esse `add` vai apanhar.
+E a impressao digital (codefp) inclui sempre o codigo por adicionar, por conteudo, para o
+verde carimbado antes do `git add` continuar valido depois dele.
+
 Override por env (testes): BULLETPROOF_STATE (base do estado), BULLETPROOF_LEDGER.
 """
 import hashlib
@@ -20,26 +27,59 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import fv as gate  # a porta do marcador
+import cmdparse
+import codefp
 
 STATE_BASE = os.environ.get("BULLETPROOF_STATE") or os.path.expanduser("~/.claude/state")
-
-CODE_RE = re.compile(
-    r"\.(ts|tsx|js|jsx|mjs|cjs|svelte|vue|sql|py|go|rs|rb|java|kt|kts|c|cc|cpp|h|hpp|php|cs)$",
-    re.I,
-)
 
 
 def git(args, cwd):
     return subprocess.run(["git", "-C", cwd] + args, capture_output=True, text=True).stdout
 
 
-def resolve_workdir(cmd, cwd):
-    """Onde e que o git vai mesmo correr: respeita 'git -C <path>' e 'cd <path> &&'."""
-    m = re.search(r"\bgit\b[^|;&]*?-C\s+(\S+)", cmd) or re.search(r"\bcd\s+(\S+)\s*&&", cmd)
-    if m:
-        p = m.group(1).strip("'\"")
-        return p if os.path.isabs(p) else os.path.join(cwd, p)
-    return cwd
+def find_commit(cmd, cwd):
+    """(dir_do_commit, adds) do primeiro `git commit` da linha, ou (None, None).
+    `adds` sao os argumentos dos `git add`/`git stage` que correm ANTES dele, cada um com
+    o diretorio onde corre: e' o que vai entrar no commit e o git ainda nao ve."""
+    adds = []
+    for _text, toks, directory in cmdparse.effective_commands(cmd, cwd):
+        sub, args, _dirs = cmdparse.git_parts(toks)
+        if sub in ("add", "stage"):
+            adds.append((directory, args))
+        elif sub == "commit":
+            return directory, adds
+    return None, None
+
+
+def untracked_code_being_added(repo, adds, regex):
+    """O codigo por adicionar que os `git add` da linha vao meter no commit. Um caminho
+    explicito de ficheiro conta so' esse ficheiro; tudo o resto (-A, ., pastas, globs)
+    conta todo o codigo por adicionar -- a guarda nao adivinha para o lado permissivo."""
+    if not adds:
+        return []
+    pending = [p for p in codefp.untracked(repo) if regex.search(p)]
+    if not pending:
+        return []
+    picked, wide = set(), False
+    root = os.path.realpath(repo)
+    for directory, args in adds:
+        flags = [a for a in args if a.startswith("-")]
+        specs = [a for a in args if not a.startswith("-")]
+        if any(f in ("-u", "--update") for f in flags):
+            continue  # `add -u` so' atualiza ficheiros ja' seguidos: nao traz codigo novo
+        if not specs:
+            if any(f in ("-A", "--all") for f in flags):
+                wide = True
+            continue
+        for spec in specs:
+            full = os.path.realpath(os.path.join(directory, spec))
+            rel = os.path.relpath(full, root)
+            if os.path.isfile(full):
+                if rel in pending:
+                    picked.add(rel)
+            else:
+                wide = True  # pasta, ".", glob: nao adivinho para o lado permissivo
+    return pending if wide else sorted(picked)
 
 
 def log_block(repo, fp, cmd, session):
@@ -63,11 +103,13 @@ def main():
         sys.exit(0)
     cmd = payload.get("tool_input", {}).get("command", "") or payload.get("command", "")
     # so morde num git commit (nao em status/push/merge)
-    if not re.search(r"\bgit\b[^|;&]*\bcommit\b", cmd):
+    if not re.search(r"\bcommit\b", cmd):
         sys.exit(0)
 
     cwd = payload.get("cwd") or os.getcwd()
-    work = resolve_workdir(cmd, cwd)
+    work, adds = find_commit(cmd, cwd)
+    if work is None:
+        sys.exit(0)
 
     # PORTA: so age em projetos geridos pelo plugin. Sem marca -> passa (fail-open).
     fvdata = gate.managed_project(work)
@@ -87,8 +129,10 @@ def main():
         if not repo:
             sys.exit(0)  # nao e repo -> fail-open
 
-        changed = [l for l in git(["diff", "HEAD", "--name-only"], repo).splitlines() if l.strip()]
-        if not any(CODE_RE.search(f) for f in changed):
+        code_re = codefp.code_regex(fvdata)
+        touched = codefp.changed_code(repo, code_re, include_untracked=False)
+        touched += untracked_code_being_added(repo, adds, code_re)
+        if not touched:
             sys.exit(0)  # so docs/config -> nao morde
 
         fp = subprocess.run(

@@ -9,8 +9,9 @@ Corre a camada de testes do projeto atual, com um auto-check de cobertura ANTES 
 
 ## Passo 0 — auto-check de cobertura
 
-1. Ve o que mudou: `git status --short` + `git diff HEAD`. Se nao ha alteracoes, salta
-   para o Passo 1.
+1. Ve o que mudou: `git status --short` + `git diff HEAD`. Os ficheiros NOVOS por adicionar
+   (`??` no status) contam como alteracao e o `git diff` nao mostra o conteudo deles: le-os.
+   Se nao ha alteracoes, salta para o Passo 1.
 2. Para cada alteracao de CODIGO (logica nova ou alterada, fluxo novo, escrita em BD
    nova), responde: ha um teste que exercita isto? se esta logica falhar, algum teste
    fica vermelho?
