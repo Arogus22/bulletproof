@@ -14,6 +14,8 @@ Superficie:
     qualquer pedido de escrita feito a esse servidor escreve em producao -> ask
   - Bash, scripts do package.json (`npm run db:migrate:remote`, `npm run dev`): a guarda
     expande o script e julga o comando real.
+  - Bash, `drizzle-kit push|migrate|studio` quando o drizzle.config usa o driver `d1-http`:
+    fala com a D1 remota por HTTP, sem passar pelo wrangler -> ask.
   - MCP: tools de D1 (mcp__*d1*) de escrita/query-com-escrita -> ask; listagens/leituras
     -> passa. Tools genericas da Cloudflare (ex.: `execute`, que corre chamadas a' API)
     sao julgadas pelo input: so interessam se tocarem em D1.
@@ -113,6 +115,37 @@ def guard_wrangler(text, args):
             ask("Escrita na BD de PRODUCAO (D1, --remote). Autorizas esta operacao?")
 
 
+def drizzle_targets_remote(directory):
+    """True se o drizzle.config mais proximo usa o driver d1-http (D1 remota por HTTP), ou
+    se existe e nao o consigo ler. False se nao ha' config ou se aponta para outro sitio."""
+    cur = directory
+    while True:
+        for name in ("drizzle.config.ts", "drizzle.config.js", "drizzle.config.mjs",
+                     "drizzle.config.cjs", "drizzle.config.json"):
+            cand = os.path.join(cur, name)
+            if os.path.isfile(cand):
+                try:
+                    with open(cand, encoding="utf-8", errors="replace") as f:
+                        return "d1-http" in f.read()
+                except Exception:
+                    return True  # existe mas nao se le: no perimetro, a duvida pede aprovacao
+        parent = os.path.dirname(cur)
+        if parent == cur or os.path.isfile(os.path.join(cur, gate.FRAMEWORK_FILE)):
+            return False
+        cur = parent
+
+
+def guard_drizzle(args, directory):
+    words = [a for a in args if not a.startswith("-")]
+    if not words or words[0] not in ("push", "migrate", "studio"):
+        return  # generate, pull, check, drop: ficheiros locais ou leitura
+    if not drizzle_targets_remote(directory):
+        return
+    if words[0] == "studio":
+        ask("`drizzle-kit studio` abre um editor ligado a' BD de PRODUCAO (D1, driver d1-http). Autorizas?")
+    ask("`drizzle-kit %s` altera a BD de PRODUCAO (D1, driver d1-http no drizzle.config). Autorizas?" % words[0])
+
+
 def guard_bash(cmd, cwd):
     for text, toks, directory in cmdparse.effective_commands(cmd, cwd):
         if not guards_prod_db(directory):
@@ -120,6 +153,8 @@ def guard_bash(cmd, cwd):
         prog, args = cmdparse.program(toks)
         if prog == "wrangler":
             guard_wrangler(text, args)
+        elif prog == "drizzle-kit":
+            guard_drizzle(args, directory)
 
 
 def guard_mcp(tool, tool_input):

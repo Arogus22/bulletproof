@@ -159,6 +159,27 @@ check("nao toca em D1 -> passa (fora do perimetro desta guarda)", not run_mcp(re
 check("pesquisa de documentacao sobre D1 -> passa",
       not run_mcp(repo, "mcp__cloudflare__search", {"query": "how to delete a d1 database"}))
 
+print("\n[U] drizzle-kit com o driver d1-http fala com a D1 remota sem passar pelo wrangler")
+with open(os.path.join(api, "drizzle.config.ts"), "w") as f:
+    f.write("export default defineConfig({ dialect: 'sqlite', driver: 'd1-http', schema: './src/db/schema.ts' })\n")
+with open(os.path.join(api, "package.json")) as f:
+    pkg = json.load(f)
+pkg["scripts"].update({"db:push": "drizzle-kit push", "db:generate": "drizzle-kit generate", "db:pull": "drizzle-kit pull"})
+with open(os.path.join(api, "package.json"), "w") as f:
+    json.dump(pkg, f)
+check("drizzle-kit push -> ask", run_bash(repo, "cd dashboard/api && npx drizzle-kit push"))
+check("drizzle-kit migrate -> ask", run_bash(repo, "cd dashboard/api && npx drizzle-kit migrate"))
+check("drizzle-kit studio -> ask", run_bash(repo, "cd dashboard/api && npx drizzle-kit studio"))
+check("npm run db:push -> ask", run_bash(repo, "cd dashboard/api && npm run db:push"))
+check("config encontrado a partir de uma subpasta", run_bash(repo, "cd dashboard/api/src && npx drizzle-kit push"))
+check("drizzle-kit generate (so' escreve ficheiros) -> passa", not run_bash(repo, "cd dashboard/api && npm run db:generate"))
+check("drizzle-kit pull (leitura) -> passa", not run_bash(repo, "cd dashboard/api && npm run db:pull"))
+with open(os.path.join(api, "drizzle.config.ts"), "w") as f:
+    f.write("export default defineConfig({ dialect: 'sqlite', dbCredentials: { url: './local.db' } })\n")
+check("driver local (sem d1-http) -> passa", not run_bash(repo, "cd dashboard/api && npx drizzle-kit push"))
+os.remove(os.path.join(api, "drizzle.config.ts"))
+check("sem drizzle.config -> passa", not run_bash(repo, "cd dashboard/api && npx drizzle-kit push"))
+
 shutil.rmtree(root, ignore_errors=True)
 n = sum(1 for _, c in results if c)
 print("\n==> %d/%d PASS" % (n, len(results)))
