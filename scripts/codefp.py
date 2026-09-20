@@ -79,7 +79,7 @@ def changed_code(repo, regex, include_untracked=True):
 def fingerprint(repo, regex=None):
     if regex is None:
         regex = code_regex(gate.read_fv(repo))
-    head = _git(repo, "rev-parse", "HEAD").stdout.strip() if has_head(repo) else "(sem commits)"
+    head = _git(repo, "rev-parse", "HEAD").stdout.strip() if has_head(repo) else "(no commits)"
     h = hashlib.sha256()
     h.update(("HEAD %s\n" % head).encode())
     for p in changed_code(repo, regex):
