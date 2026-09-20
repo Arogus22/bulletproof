@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import tempfile
 
-PLUGIN = "/Users/arogus/Desktop/Claude_Playground/bulletproof-plugin"
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the repo: parent of tests/
 HOOKS = os.path.join(PLUGIN, "hooks", "hooks.json")
 
 results = []

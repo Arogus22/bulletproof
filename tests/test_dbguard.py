@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import tempfile
 
-PLUGIN = "/Users/arogus/Desktop/Claude_Playground/bulletproof-plugin"
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the repo: parent of tests/
 GUARD = os.path.join(PLUGIN, "scripts", "db-guard.py")
 
 results = []

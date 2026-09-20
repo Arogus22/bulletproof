@@ -6,7 +6,7 @@ import os
 import sys
 import tempfile
 
-PLUGIN = "/Users/arogus/Desktop/Claude_Playground/bulletproof-plugin"
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the repo: parent of tests/
 sys.path.insert(0, os.path.join(PLUGIN, "scripts"))
 import cmdparse as cp
 

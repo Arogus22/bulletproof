@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import tempfile
 
-PLUGIN = "/Users/arogus/Desktop/Claude_Playground/bulletproof-plugin"
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the repo: parent of tests/
 SCRIPTS = os.path.join(PLUGIN, "scripts")
 INIT = os.path.join(SCRIPTS, "framework-init.py")
 FV = os.path.join(SCRIPTS, "fv.py")

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Prova da detecao de capacidades (Fase 2): sinais de repositorio -> capacidades ->
-camadas. Fixtures isolados + o Dashboard real (a prova do caso concreto)."""
+"""Proof of capability detection (Phase 2): repository signals -> capabilities ->
+layers. Isolated fixtures only, including one shaped like a real adopted monorepo."""
 import os
 import shutil
 import sys
 import tempfile
 
-PLUGIN = "/Users/arogus/Desktop/Claude_Playground/bulletproof-plugin"
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # the repo: parent of tests/
 sys.path.insert(0, os.path.join(PLUGIN, "scripts"))
 import capabilities as cap
 
@@ -64,14 +64,25 @@ print("\n[8] ignora node_modules")
 caps, _ = cap.detect(mk("nm", {"node_modules/foo/wrangler.toml": "[[d1_databases]]\n", "app.py": "x"}))
 check("nao apanha wrangler em node_modules", not caps["deploy_sensitive"])
 
-DASH = "/Users/arogus/Desktop/Claude_Playground/Projects/Dashboard"
-if os.path.isdir(DASH):
-    print("\n[9] DASHBOARD REAL")
-    caps, sig = cap.detect(DASH)
-    check("db (D1) detetado", caps["db"])
-    check("deploy (Cloudflare) detetado", caps["deploy_sensitive"])
-    check("layers propostas = [1,2,3]", cap.layers_for(caps) == [1, 2, 3])
-    print("     sinais:", " | ".join(sig))
+print("\n[9] real-world shape: a monorepo with the worker two levels down (api + frontend)")
+# The layout of the first project that adopted the plugin, rebuilt as a fixture so the
+# proof runs on any machine: nothing at the root, a Cloudflare Worker with D1 and drizzle
+# in app/api/, a separate frontend in app/frontend/.
+mono = mk("monorepo", {
+    "README.md": "# monorepo\n",
+    "app/api/wrangler.toml": ('name = "api"\nmain = "src/index.ts"\n\n[[d1_databases]]\n'
+                              'binding = "DB"\ndatabase_name = "app-db"\n'),
+    "app/api/drizzle.config.ts": 'export default { dialect: "sqlite", driver: "d1-http" }\n',
+    "app/api/package.json": '{"scripts": {"deploy": "wrangler deploy", "test": "vitest run"}}\n',
+    "app/api/src/index.ts": "export default {}\n",
+    "app/frontend/package.json": '{"scripts": {"build": "vite build", "test": "vitest run"}}\n',
+    "app/frontend/src/main.ts": "export {}\n",
+})
+caps, sig = cap.detect(mono)
+check("db (D1) detected", caps["db"])
+check("deploy (Cloudflare) detected", caps["deploy_sensitive"])
+check("proposed layers = [1,2,3]", cap.layers_for(caps) == [1, 2, 3])
+print("     signals:", " | ".join(sig))
 
 shutil.rmtree(root, ignore_errors=True)
 n = sum(1 for _, c in results if c)
