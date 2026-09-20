@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""stacks.py -- detecao de stacks pelos manifestos presentes no projeto (na raiz ou
-ate alguns niveis abaixo, porque o codigo pode viver num subdir, ex.: o Dashboard tem
-os package.json em dashboard/api/ e dashboard/frontend/). Partilhado pelo Guia (aviso de
-drift) e pelo framework-init, para os dois nunca discordarem sobre o que conta como stack."""
+"""stacks.py -- stack detection from the manifests present in the project (at the root
+or a few levels below, because the code can live in a subdir: a real monorepo keeps its
+package.json files in dashboard/api/ and dashboard/frontend/). Shared by the Guide (drift
+warning) and by framework-init, so the two never disagree on what counts as a stack."""
 import os
 
 STACK_MANIFESTS = {
@@ -17,8 +17,8 @@ SKIP_DIRS = {"node_modules", ".git", ".wrangler", "dist", "build", ".svelte-kit"
 
 
 def detect(root, depth=3):
-    """Lista ordenada dos stacks cujos manifestos existem em `root` ou ate `depth`
-    niveis abaixo (ignora node_modules/.git/etc.)."""
+    """Sorted list of the stacks whose manifests exist in `root` or down to `depth`
+    levels below (ignores node_modules/.git/etc.)."""
     found = set()
     root = os.path.abspath(root)
     for dirpath, dirs, files in os.walk(root):

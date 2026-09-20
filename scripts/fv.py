@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""fv.py -- a "porta" do plugin Bulletproof.
+"""fv.py -- the "gate" of the Bulletproof plugin.
 
-Le o .framework-version do projeto e decide se ESTE projeto e' gerido pelo
-plugin. E' a invariante-mae: os hooks empacotados sao globais por natureza
-(registados via ${CLAUDE_PLUGIN_ROOT}), mas so agem onde a porta abre. Um
-.framework-version legado -- sem o marcador "plugin": "bulletproof", como o do
-FA (v0.1) -- fecha a porta, e o hook ignora o projeto por completo.
+Reads the project's .framework-version and decides whether THIS project is managed
+by the plugin. It is the root invariant: the packaged hooks are global by nature
+(registered through ${CLAUDE_PLUGIN_ROOT}), but they only act where the gate opens.
+A legacy .framework-version (a v0.1 one, without the "plugin": "bulletproof"
+marker) closes the gate, and the hook ignores the project completely.
 
-Usado como modulo (`import fv; fv.managed_project(cwd)`) e standalone (debug:
-`python3 fv.py [caminho]`). Fail-safe: qualquer duvida -> porta FECHADA (None).
+Used as a module (`import fv; fv.managed_project(cwd)`) and standalone (debug:
+`python3 fv.py [path]`). Fail-safe: any doubt -> gate CLOSED (None).
 """
 import json
 import os
@@ -18,10 +18,10 @@ FRAMEWORK_FILE = ".framework-version"
 
 
 def find_framework_file(start):
-    """Sobe a partir de `start` a' procura do .framework-version.
+    """Walks up from `start` looking for the .framework-version.
 
-    Fix FA: o repo git pode ser um subdir (platform/) com o .framework-version
-    um nivel acima; por isso subimos a arvore em vez de olhar so para `start`.
+    The subdirectory case (git repo in platform/, control file one level up) is
+    why we climb the tree instead of only looking at `start`.
     """
     cur = os.path.abspath(start)
     while True:
@@ -29,13 +29,13 @@ def find_framework_file(start):
         if os.path.isfile(cand):
             return cand
         parent = os.path.dirname(cur)
-        if parent == cur:  # cheguei a' raiz do disco
+        if parent == cur:  # reached the root of the filesystem
             return None
         cur = parent
 
 
 def read_fv(start):
-    """Devolve o dict do .framework-version mais proximo (subindo), ou None."""
+    """Returns the dict of the nearest .framework-version (walking up), or None."""
     path = find_framework_file(start)
     if not path:
         return None
@@ -48,8 +48,8 @@ def read_fv(start):
 
 
 def managed_project(start):
-    """A PORTA. Devolve o dict do .framework-version se este projeto e' gerido
-    pelo plugin (marcador "plugin" == PLUGIN_ID); senao None (porta fechada).
+    """THE GATE. Returns the .framework-version dict if this project is managed by
+    the plugin ("plugin" marker == PLUGIN_ID); otherwise None (gate closed).
     """
     fv = read_fv(start)
     if fv is None:
@@ -60,15 +60,15 @@ def managed_project(start):
 
 
 def root_of(start):
-    """A raiz do projeto gerido: o diretorio que contem o .framework-version."""
+    """The root of the managed project: the directory that holds the .framework-version."""
     path = find_framework_file(start)
     return os.path.dirname(path) if path else None
 
 
 def layers_of(fvdata):
-    """As camadas ativas de um projeto gerido. O v0.3 usa o campo `layers`; um v0.2
-    legado (so `tiers`, ou sem o campo) mapeia para [1, 2] (o que um projeto gerido
-    tinha de facto). Garante que a 2 nao aparece sem a 1 (a 2 depende da 1)."""
+    """The active layers of a managed project. v0.3 uses the `layers` field; a legacy
+    v0.2 (only `tiers`, or no field at all) maps to [1, 2] (what a managed project
+    actually had). Makes sure 2 never shows up without 1 (layer 2 depends on layer 1)."""
     if not isinstance(fvdata, dict):
         return [1, 2]
     raw = fvdata.get("layers")

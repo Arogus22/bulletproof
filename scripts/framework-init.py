@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""framework-init.py -- adota um projeto no Bulletproof (Fase 2: deteta as capacidades
-e propoe as camadas).
+"""framework-init.py -- adopts a project into Bulletproof: detects the capabilities
+and proposes the layers.
 
-Cria (ou estende, idempotente) o .framework-version v0.3 na raiz do projeto, com o
-marcador do plugin, o status, as camadas ativas (derivadas das capacidades detetadas),
-os stacks, e a config por camada. Reporta os sinais detetados e as perguntas de
-confirmacao sobre o que a detecao NAO consegue ver (o humano fecha os falsos negativos).
+Creates (or extends, idempotently) the v0.3 .framework-version at the project root,
+with the plugin marker, the status, the active layers (derived from the detected
+capabilities), the stacks, and the per-layer config. Reports the signals it detected
+and the confirmation questions about what detection CANNOT see (the human closes the
+false negatives).
 
-Uso: python3 framework-init.py [dir] [--stack S ...]
+Usage: python3 framework-init.py [dir] [--stack S ...]
 
-Recusa-se a sobrescrever um .framework-version LEGADO (sem o marcador do plugin).
+Refuses to overwrite a LEGACY .framework-version (one without the plugin marker).
 """
 import argparse
 import json
@@ -27,7 +28,7 @@ SCHEMA_VERSION = "0.3"
 
 
 def read_local(root):
-    """Le o .framework-version SO deste dir (o init opera na raiz indicada)."""
+    """Reads the .framework-version of THIS dir only (init works on the root given)."""
     path = os.path.join(root, ".framework-version")
     if not os.path.isfile(path):
         return None
@@ -40,7 +41,7 @@ def read_local(root):
 
 
 def build_config(caps):
-    """Config por camada, conforme as capacidades detetadas."""
+    """Per-layer config, according to the capabilities that were detected."""
     # One default for "this is code": the Exit Lock's own (codefp). A second copy here had
     # drifted narrower, and since config.code_re wins, every adopted C/C++/Kotlin-script
     # project was committing that code unpoliced.
@@ -54,7 +55,7 @@ def build_config(caps):
 
 
 def plan(root, forced):
-    """Devolve (data, action, caps, signals). data=None => recusa (legado)."""
+    """Returns (data, action, caps, signals). data=None => refused (legacy)."""
     stacks = sorted(set(forced) | set(stackmod.detect(root)))
     caps, signals = capmod.detect(root)
     layers = capmod.layers_for(caps)
@@ -102,7 +103,7 @@ def main(argv):
     data, action, caps, signals = plan(root, a.stacks)
     path = os.path.join(root, ".framework-version")
 
-    if data is None:  # legado
+    if data is None:  # legacy
         print("framework-init: there is already a .framework-version WITHOUT the plugin "
               "marker (legacy) at %s." % path)
         print("I will not overwrite a setup of your own. Back up or remove the current file "

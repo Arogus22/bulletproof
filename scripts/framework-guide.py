@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""SessionStart hook -- Bulletproof, Tier 2 (Guia), versao plugin.
+"""SessionStart hook -- Bulletproof, layer 2 (the Guide), plugin version.
 
-Injeta contexto no arranque SO em projetos geridos pelo plugin (decidido pela
-porta fv.py). Num projeto nao-gerido -- o FA legado, ou qualquer outro projeto
-do utilizador -- cala-se por completo (exit 0 sem output). NUNCA bloqueia; e'
-um guia, nao um policia. Fail-open: qualquer erro -> exit 0.
+Injects context at session start ONLY in projects managed by the plugin (decided
+by the gate, fv.py). In a project that is not managed (a legacy setup, or any
+other project of the user's) it stays completely quiet (exit 0, no output). It
+NEVER blocks: it is a guide, not a policeman. Fail-open: any error -> exit 0.
 
-Le o schema v0.2 do .framework-version: `status` (bootstrapping|active) e
-`stacks`. Em bootstrapping (stack por decidir, sem testes) avisa para correr o
-/framework-init; em active confirma o Exit Lock e faz um aviso de drift simples.
+Reads the v0.2 schema of the .framework-version: `status` (bootstrapping|active)
+and `stacks`. In bootstrapping (stack still undecided, no tests) it says to run
+/bulletproof:framework-init; in active it confirms the Exit Lock and gives a
+simple drift warning.
 """
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import fv as gate  # a porta do marcador
-import stacks as stackmod  # detecao de stacks
-import capabilities as capmod  # detecao de capacidades (drift de camadas)
+import fv as gate  # the marker gate
+import stacks as stackmod  # stack detection
+import capabilities as capmod  # capability detection (layer drift)
 
 
 def message(fvdata, root):
@@ -38,12 +39,12 @@ def message(fvdata, root):
                      "production database ask for your approval.")
     if stacks:
         parts.append("Stacks: %s." % ", ".join(stacks))
-    # drift de stack: apareceu um manifesto de um stack nao declarado?
+    # stack drift: has a manifest of an undeclared stack shown up?
     sdrift = set(stackmod.detect(root)) - set(stacks)
     if sdrift and stacks:
         parts.append("Stack drift: %s appeared; run /bulletproof:framework-init." %
                      ", ".join(sorted(sdrift)))
-    # drift de capacidade: um sinal novo (BD/deploy) que ainda nao esta nas camadas
+    # capability drift: a new signal (database/deploy) not covered by the layers yet
     try:
         caps, _ = capmod.detect(root)
         new_layers = sorted(set(capmod.layers_for(caps)) - set(layers))
@@ -64,7 +65,7 @@ def main():
     try:
         fvdata = gate.managed_project(cwd)
         if fvdata is None:
-            sys.exit(0)  # porta fechada -> silencio total
+            sys.exit(0)  # gate closed -> complete silence
         root = gate.root_of(cwd) or cwd
         out = {"hookSpecificOutput": {
             "hookEventName": "SessionStart",

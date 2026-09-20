@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""capabilities.py -- deteta as capacidades de um projeto a partir dos sinais no
-repositorio, para decidir que camadas do Bulletproof se ligam. Partilhado pelo
-framework-init (propor na adocao) e pelo Guia (avisar drift de capacidades).
+"""capabilities.py -- detects a project's capabilities from the signals in the
+repository, to decide which Bulletproof layers get switched on. Shared by
+framework-init (to propose them on adoption) and by the Guide (to warn about
+capability drift).
 
-Capacidades: db, deploy_sensitive, staging. Cada uma vem de sinais de FICHEIRO
-(evidencia do projeto, nao do ambiente global). A deteccao devolve tambem os sinais
-encontrados (para mostrar ao humano) e as perguntas de confirmacao sobre o que a
-deteccao NAO consegue ver do repositorio (para apanhar falsos negativos).
+Capabilities: db, deploy_sensitive, staging. Each one comes from FILE signals
+(evidence from the project, not from the global environment). Detection also returns
+the signals it found (to show the human) and the confirmation questions about what
+detection CANNOT see from the repository (to catch false negatives).
 """
 import os
 import re
@@ -23,9 +24,9 @@ def _read(path):
 
 
 def _walk_find(root, names, depth=3):
-    """Caminhos de quaisquer `names` (ficheiro ou dir) ate `depth` niveis abaixo de
-    root, ignorando node_modules/.git/etc. (o codigo pode viver num subdir, ex.: o
-    Dashboard tem o wrangler.toml em dashboard/api/)."""
+    """Paths of any of `names` (file or dir) down to `depth` levels below root,
+    ignoring node_modules/.git/etc. (the code can live in a subdir: a real monorepo
+    keeps its wrangler.toml in dashboard/api/)."""
     found = []
     root = os.path.abspath(root)
     wanted = set(names)
@@ -42,7 +43,7 @@ def _walk_find(root, names, depth=3):
 
 
 def detect(root):
-    """Devolve (caps: dict[str,bool], signals: list[str])."""
+    """Returns (caps: dict[str,bool], signals: list[str])."""
     caps = {"db": False, "deploy_sensitive": False, "staging": False}
     signals = []
 
@@ -86,8 +87,9 @@ def detect(root):
 
 
 def layers_for(caps):
-    """Capacidades -> camadas ATIVAS nesta fase. 1-2 sempre; 3 se ha deploy sensivel
-    ou BD de prod. (Camadas 4 staging e 5 invariantes sao Fase 3, nao se ligam ainda.)"""
+    """Capabilities -> the layers that are ACTIVE today. 1-2 always; 3 if there is a
+    sensitive deploy or a production database. (Layer 4, staging-first, and layer 5,
+    invariants, are planned and not switched on yet.)"""
     layers = [1, 2]
     if caps.get("db") or caps.get("deploy_sensitive"):
         layers.append(3)
@@ -95,8 +97,8 @@ def layers_for(caps):
 
 
 def confirm_questions(caps):
-    """Perguntas sobre o que a deteccao NAO viu, para o humano confirmar na adocao
-    (apanha falsos negativos: uma guarda que devia existir e nao apareceu)."""
+    """Questions about what detection did NOT see, for the human to confirm on
+    adoption (catches false negatives: a guard that should exist and did not show up)."""
     qs = []
     if not caps.get("deploy_sensitive"):
         qs.append("I found no production deploy. Does this project publish anywhere "
