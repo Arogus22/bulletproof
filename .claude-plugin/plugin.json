@@ -1,7 +1,13 @@
 {
   "name": "bulletproof",
-  "description": "Disciplina de testes por hooks deterministicos: Guia (SessionStart), Exit Lock (bloqueia git commit de codigo sem verde) e guardas de producao (deploy e BD pedem aprovacao). Gated por marcador no .framework-version: so age em projetos adotados pelo plugin, ignora todos os outros.",
-  "version": "0.2.0",
-  "author": { "name": "Rafael" },
-  "keywords": ["testing", "hooks", "quality-gate", "tdd"]
+  "description": "Test discipline through deterministic hooks: an Exit Lock that blocks `git commit` of code with no green test run, a Guide at session start, and production guards that ask for approval before a deploy or a production database write. Gated by a marker in .framework-version: it only acts in projects adopted by the plugin and ignores every other.",
+  "version": "0.3.0",
+  "author": {
+    "name": "Rafael (Arogus22)",
+    "url": "https://github.com/Arogus22"
+  },
+  "homepage": "https://github.com/Arogus22/bulletproof",
+  "repository": "https://github.com/Arogus22/bulletproof",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "keywords": ["testing", "hooks", "quality-gate", "tdd", "guardrails", "deploy-safety"]
 }

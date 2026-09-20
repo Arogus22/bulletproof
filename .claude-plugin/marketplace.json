@@ -1,0 +1,27 @@
+{
+  "name": "bulletproof",
+  "owner": {
+    "name": "Arogus22",
+    "url": "https://github.com/Arogus22"
+  },
+  "metadata": {
+    "description": "Bulletproof: test discipline for Claude Code, enforced by deterministic hooks instead of the model's goodwill",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "bulletproof",
+      "source": "./",
+      "description": "Test discipline through deterministic hooks: an Exit Lock that blocks `git commit` of code with no green test run, a Guide at session start, and production guards that ask for approval before a deploy or a production database write. It only acts in projects you adopt; every other project is ignored.",
+      "version": "0.3.0",
+      "author": {
+        "name": "Rafael (Arogus22)",
+        "url": "https://github.com/Arogus22"
+      },
+      "homepage": "https://github.com/Arogus22/bulletproof",
+      "license": "PolyForm-Noncommercial-1.0.0",
+      "keywords": ["testing", "hooks", "quality-gate", "tdd", "guardrails", "deploy-safety"],
+      "category": "development"
+    }
+  ]
+}
