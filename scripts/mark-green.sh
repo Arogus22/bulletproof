@@ -15,7 +15,10 @@ repo=$(git -C "$arg" rev-parse --show-toplevel 2>/dev/null)
 if [ -z "$repo" ]; then echo "mark-green: '$arg' nao e um repo git, ignorado"; exit 0; fi
 fp=$(bash "$here/exit-lock-fp.sh" "$repo")
 if [ -z "$fp" ]; then echo "mark-green: nao consegui calcular o fingerprint"; exit 0; fi
-key=$(printf '%s' "$repo" | shasum -a 256 | cut -d' ' -f1)
+# The key is sha256(repo path), computed with python3 exactly as exit-lock-guard.py does.
+# No shasum/sha256sum: neither is on every system, and python3 is already required.
+key=$(python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())' "$repo")
+if [ -z "$key" ]; then echo "mark-green: could not hash the repo path"; exit 0; fi
 dir="$state_base/exit-lock/$key"
 mkdir -p "$dir"
 printf '%s' "$fp" > "$dir/last-green"
