@@ -18,6 +18,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import fv as gate
 import stacks as stackmod
 import capabilities as capmod
 import codefp
@@ -62,10 +63,19 @@ def plan(root, forced):
     if existing is not None and existing.get("plugin") != "bulletproof":
         return None, "LEGADO", caps, signals
 
-    if existing is not None:  # incremental: estende stacks, mantem status, re-propoe camadas
+    config = build_config(caps)
+    if existing is not None:  # incremental: extends, never weakens
         stacks = sorted(set(existing.get("stacks", [])) | set(stacks))
         status = existing.get("status", "bootstrapping")
         tests = existing.get("tests", {}) if isinstance(existing.get("tests"), dict) else {}
+        # A re-run only ADDS. Layers and config blocks already in the file stay as they are:
+        # they may be what a human confirmed because detection could not see it (a deploy
+        # with no trace in the repo, a custom protected branch). Re-deriving them from
+        # detection alone silently switched those production guards off on the next run,
+        # which is exactly the run the Guide asks for when it reports drift.
+        layers = sorted(set(gate.layers_of(existing)) | set(layers))
+        kept = existing.get("config") if isinstance(existing.get("config"), dict) else {}
+        config = dict(config, **kept)
         action = "ESTENDIDO"
     else:
         status = "bootstrapping"
@@ -74,7 +84,7 @@ def plan(root, forced):
 
     data = {"framework": "bulletproof", "version": SCHEMA_VERSION, "plugin": "bulletproof",
             "status": status, "layers": layers, "stacks": stacks, "tests": tests,
-            "config": build_config(caps)}
+            "config": config}
     return data, action, caps, signals
 
 

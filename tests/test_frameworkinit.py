@@ -96,6 +96,36 @@ open(os.path.join(d, "package.json"), "w").close()
 run_init(d)
 check("estende [node, python]", read_fv(d).get("stacks") == ["node", "python"])
 
+print("\n[5b] re-running init never weakens what a human confirmed")
+# covers: scripts/framework-init.py plan() -- layers and config used to be re-derived from
+# detection alone, so a confirmed layer 3 (and its deploy block) vanished on the next run.
+d = mkproj("confirmed", {"app.py": "print(1)\n", "pyproject.toml": "[project]\nname = 'x'\n"})
+run_init(d)
+fv = read_fv(d)
+check("starts with no production layer (nothing to detect)", fv.get("layers") == [1, 2])
+fv["layers"] = [1, 2, 3]
+fv["config"]["deploy"] = {"protected_branch": "production", "deploy_cmds": ["fly deploy"]}
+fv["config"]["code_re"] = r"\.(py|ex)$"
+with open(os.path.join(d, ".framework-version"), "w") as f:
+    json.dump(fv, f)
+open(os.path.join(d, "package.json"), "w").close()  # stack drift: the Guide says "run init again"
+run_init(d)
+after = read_fv(d)
+check("confirmed layer 3 survives the re-run", after.get("layers") == [1, 2, 3])
+check("confirmed deploy block survives verbatim",
+      after.get("config", {}).get("deploy") == {"protected_branch": "production", "deploy_cmds": ["fly deploy"]})
+check("custom code_re survives", after.get("config", {}).get("code_re") == r"\.(py|ex)$")
+check("and the re-run still did its job (new stack added)", after.get("stacks") == ["node", "python"])
+
+print("\n[5c] a capability that appears later is still added on the re-run")
+with open(os.path.join(d, "wrangler.toml"), "w") as f:
+    f.write("[[d1_databases]]\nbinding='DB'\n")
+run_init(d)
+after = read_fv(d)
+check("prod_db block added", after.get("config", {}).get("prod_db", {}).get("kind") == "d1")
+check("without touching the confirmed deploy block",
+      after.get("config", {}).get("deploy", {}).get("protected_branch") == "production")
+
 print("\n[6] a porta reconhece o v0.3 como gerido")
 d = mkproj("porta")
 run_init(d)
