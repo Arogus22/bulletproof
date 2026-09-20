@@ -90,7 +90,7 @@ if __name__ == "__main__":
     where = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
     data = managed_project(where)
     if data is None:
-        print("porta FECHADA (nao gerido pelo plugin): %s" % os.path.abspath(where))
+        print("gate CLOSED (not managed by the plugin): %s" % os.path.abspath(where))
         raise SystemExit(1)
-    print("porta ABERTA (%s): %s" % (root_of(where), json.dumps(data)))
+    print("gate OPEN (%s): %s" % (root_of(where), json.dumps(data)))
     raise SystemExit(0)

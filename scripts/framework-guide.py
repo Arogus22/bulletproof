@@ -26,30 +26,30 @@ def message(fvdata, root):
     layers = gate.layers_of(fvdata)
 
     if status == "bootstrapping":
-        return ("Framework adotado (camadas %s), ainda SEM verde. Corre /testar; ao primeiro "
-                "verde o projeto passa a 'active' e o Exit Lock arma-se. Ate la os commits de "
-                "codigo nao sao bloqueados. (Falta o stack ou os testes? corre "
+        return ("Framework adopted (layers %s), NO green yet. Run /bulletproof:testar; on the "
+                "first green the project becomes 'active' and the Exit Lock arms itself. Until "
+                "then code commits are not blocked. (Missing the stack or the tests? Run "
                 "/bulletproof:framework-init.)" % layers)
 
-    parts = ["Camadas ativas: %s. Exit Lock a policiar: 'git commit' de codigo exige um "
-             "verde do /testar." % layers]
+    parts = ["Active layers: %s. Exit Lock policing: a 'git commit' that touches code needs "
+             "a green from /bulletproof:testar." % layers]
     if 3 in layers:
-        parts.append("Guardas de producao (camada 3) ligadas: publicar e escrever na BD de "
-                     "prod pedem a tua aprovacao.")
+        parts.append("Production guards (layer 3) are on: publishing and writing to the "
+                     "production database ask for your approval.")
     if stacks:
         parts.append("Stacks: %s." % ", ".join(stacks))
     # drift de stack: apareceu um manifesto de um stack nao declarado?
     sdrift = set(stackmod.detect(root)) - set(stacks)
     if sdrift and stacks:
-        parts.append("Drift de stack: apareceu %s; corre /bulletproof:framework-init." %
+        parts.append("Stack drift: %s appeared; run /bulletproof:framework-init." %
                      ", ".join(sorted(sdrift)))
     # drift de capacidade: um sinal novo (BD/deploy) que ainda nao esta nas camadas
     try:
         caps, _ = capmod.detect(root)
         new_layers = sorted(set(capmod.layers_for(caps)) - set(layers))
         if new_layers:
-            parts.append("ATENCAO capacidade nova detetada (camada %s por ligar): corre "
-                         "/bulletproof:framework-init para ligar as guardas." % new_layers)
+            parts.append("WARNING new capability detected (layer %s not switched on yet): run "
+                         "/bulletproof:framework-init to switch the guards on." % new_layers)
     except Exception:
         pass
     return " ".join(parts)

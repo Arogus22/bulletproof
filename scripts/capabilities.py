@@ -74,7 +74,7 @@ def detect(root):
         try:
             if any(re.search(r"deploy|pages|publish|release", f, re.I) for f in os.listdir(gh)):
                 caps["deploy_sensitive"] = True
-                signals.append("deploy: workflow em .github/workflows")
+                signals.append("deploy: workflow in .github/workflows")
         except Exception:
             pass
 
@@ -99,11 +99,11 @@ def confirm_questions(caps):
     (apanha falsos negativos: uma guarda que devia existir e nao apareceu)."""
     qs = []
     if not caps.get("deploy_sensitive"):
-        qs.append("Nao detetei deploy para producao. Este projeto publica algures "
-                  "(um push que va a producao, um deploy manual)?")
+        qs.append("I found no production deploy. Does this project publish anywhere "
+                  "(a push that reaches production, a manual deploy)?")
     if not caps.get("db"):
-        qs.append("Nao detetei base de dados de producao. Este projeto escreve numa "
-                  "BD real (por uma via que nao deixa rasto no repositorio)?")
+        qs.append("I found no production database. Does this project write to a real "
+                  "database (through something that leaves no trace in the repository)?")
     return qs
 
 

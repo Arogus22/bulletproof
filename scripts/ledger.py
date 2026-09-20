@@ -67,14 +67,14 @@ def record(event, gate, project, reason=None, incident_seed=None,
 
 def _main(argv):
     import argparse
-    p = argparse.ArgumentParser(description="append de uma intervencao ao ledger")
+    p = argparse.ArgumentParser(description="append one intervention to the ledger")
     p.add_argument("event")
     p.add_argument("gate")
     p.add_argument("project")
     p.add_argument("--reason")
     p.add_argument("--session")
     p.add_argument("--incident-seed", dest="incident_seed")
-    p.add_argument("--detail", help="JSON com detalhe extra")
+    p.add_argument("--detail", help="JSON with extra detail")
     a = p.parse_args(argv)
     detail = None
     if a.detail:

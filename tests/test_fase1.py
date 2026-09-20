@@ -61,15 +61,15 @@ def run_guide(cwd):
     return p.returncode, p.stdout.strip()
 
 print("\n[1] Porta (fv.py)")
-rc, out = run_fv(boot);    check("gerido bootstrapping -> porta ABERTA (rc0)", rc == 0 and "ABERTA" in out)
-rc, out = run_fv(active);  check("gerido active -> porta ABERTA (rc0)", rc == 0 and "ABERTA" in out)
-rc, out = run_fv(legacy);  check("legado FA (v0.1, sem marca) -> porta FECHADA (rc1)", rc == 1 and "FECHADA" in out)
-rc, out = run_fv(plain);   check("sem .framework-version -> porta FECHADA (rc1)", rc == 1 and "FECHADA" in out)
-rc, out = run_fv(subdir);  check("subdir platform/ -> sobe a arvore, porta ABERTA (rc0)", rc == 0 and "ABERTA" in out)
+rc, out = run_fv(boot);    check("gerido bootstrapping -> porta ABERTA (rc0)", rc == 0 and "OPEN" in out)
+rc, out = run_fv(active);  check("gerido active -> porta ABERTA (rc0)", rc == 0 and "OPEN" in out)
+rc, out = run_fv(legacy);  check("legado FA (v0.1, sem marca) -> porta FECHADA (rc1)", rc == 1 and "CLOSED" in out)
+rc, out = run_fv(plain);   check("sem .framework-version -> porta FECHADA (rc1)", rc == 1 and "CLOSED" in out)
+rc, out = run_fv(subdir);  check("subdir platform/ -> sobe a arvore, porta ABERTA (rc0)", rc == 0 and "OPEN" in out)
 
 print("\n[2] Guia (framework-guide.py)")
 rc, out = run_guide(boot)
-ok = rc == 0 and out != "" and "verde" in out and "framework-init" in out
+ok = rc == 0 and out != "" and "green" in out and "framework-init" in out
 check("bootstrapping -> avisa p/ primeiro verde + framework-init", ok)
 try:
     j = json.loads(out); has_ctx = "additionalContext" in j.get("hookSpecificOutput", {})
@@ -78,16 +78,16 @@ except Exception:
 check("bootstrapping -> output e' JSON valido de SessionStart", has_ctx)
 
 rc, out = run_guide(active)
-ok = (rc == 0 and "policiar" in out and "python" in out and "drift" not in out
-      and "capacidade nova" not in out)
+ok = (rc == 0 and "policing" in out and "python" in out and "drift" not in out
+      and "new capability" not in out)
 check("active (stack bate certo) -> Exit Lock a policiar, sem avisos", ok)
 
 rc, out = run_guide(drift)
-ok = rc == 0 and "Drift de stack" in out and "node" in out
+ok = rc == 0 and "Stack drift" in out and "node" in out
 check("active + manifesto de stack nao declarado -> drift de stack (node)", ok)
 
 rc, out = run_guide(capdrift)
-ok = rc == 0 and "capacidade nova" in out and "3" in out
+ok = rc == 0 and "new capability" in out and "3" in out
 check("active + capacidade nova (D1) -> avisa camada 3 por ligar", ok)
 
 rc, out = run_guide(plain)

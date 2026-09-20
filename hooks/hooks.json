@@ -8,7 +8,7 @@
             "command": "python3",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/framework-guide.py"],
             "timeout": 15,
-            "statusMessage": "Bulletproof: a classificar o projeto..."
+            "statusMessage": "Bulletproof: classifying the project..."
           }
         ]
       }
@@ -22,7 +22,7 @@
             "command": "python3",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/exit-lock-guard.py"],
             "timeout": 10,
-            "statusMessage": "Bulletproof: a verificar o carimbo verde..."
+            "statusMessage": "Bulletproof: checking the green stamp..."
           }
         ]
       },
@@ -34,7 +34,7 @@
             "command": "python3",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/deploy-guard.py"],
             "timeout": 10,
-            "statusMessage": "Bulletproof: guarda de deploy (camada 3)..."
+            "statusMessage": "Bulletproof: deploy guard (layer 3)..."
           }
         ]
       },
@@ -46,7 +46,7 @@
             "command": "python3",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py"],
             "timeout": 10,
-            "statusMessage": "Bulletproof: guarda de BD de producao (camada 3)..."
+            "statusMessage": "Bulletproof: production database guard (layer 3)..."
           }
         ]
       },
@@ -58,7 +58,7 @@
             "command": "python3",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py"],
             "timeout": 10,
-            "statusMessage": "Bulletproof: guarda de BD via MCP (camada 3)..."
+            "statusMessage": "Bulletproof: database guard for MCP tools (layer 3)..."
           }
         ]
       }

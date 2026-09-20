@@ -86,7 +86,7 @@ try:
 except Exception:
     pass
 check("resolve o caminho e corre (rc0)", rc == 0)
-check("injeta contexto Bulletproof (active)", "[Bulletproof]" in ctx and "policiar" in ctx)
+check("injeta contexto Bulletproof (active)", "[Bulletproof]" in ctx and "policing" in ctx)
 
 print("\n[3] PreToolUse (Exit Lock) pela cablagem -> bloqueia commit nao-verde")
 rc, out, err = run_event("PreToolUse",

@@ -61,7 +61,7 @@ def plan(root, forced):
     existing = read_local(root)
 
     if existing is not None and existing.get("plugin") != "bulletproof":
-        return None, "LEGADO", caps, signals
+        return None, "LEGACY", caps, signals
 
     config = build_config(caps)
     if existing is not None:  # incremental: extends, never weakens
@@ -76,11 +76,11 @@ def plan(root, forced):
         layers = sorted(set(gate.layers_of(existing)) | set(layers))
         kept = existing.get("config") if isinstance(existing.get("config"), dict) else {}
         config = dict(config, **kept)
-        action = "ESTENDIDO"
+        action = "EXTENDED"
     else:
         status = "bootstrapping"
         tests = {}
-        action = "CRIADO"
+        action = "CREATED"
 
     data = {"framework": "bulletproof", "version": SCHEMA_VERSION, "plugin": "bulletproof",
             "status": status, "layers": layers, "stacks": stacks, "tests": tests,
@@ -89,46 +89,46 @@ def plan(root, forced):
 
 
 def main(argv):
-    p = argparse.ArgumentParser(description="adota o projeto no Bulletproof")
+    p = argparse.ArgumentParser(description="adopt a project into Bulletproof")
     p.add_argument("dir", nargs="?", default=".")
     p.add_argument("--stack", action="append", default=[], dest="stacks")
     a = p.parse_args(argv)
     root = os.path.abspath(a.dir)
 
     if not os.path.isdir(root):
-        print("framework-init: '%s' nao e um diretorio." % root)
+        print("framework-init: '%s' is not a directory." % root)
         return 2
 
     data, action, caps, signals = plan(root, a.stacks)
     path = os.path.join(root, ".framework-version")
 
     if data is None:  # legado
-        print("framework-init: ja existe um .framework-version SEM o marcador do plugin "
-              "(legado) em %s." % path)
-        print("Nao vou sobrescrever um setup proprio. Faz backup/remove o ficheiro atual "
-              "primeiro se queres adotar este projeto no plugin.")
+        print("framework-init: there is already a .framework-version WITHOUT the plugin "
+              "marker (legacy) at %s." % path)
+        print("I will not overwrite a setup of your own. Back up or remove the current file "
+              "first if you want this project adopted by the plugin.")
         return 2
 
     with open(path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    print("Bulletproof: projeto %s." % ("estendido" if action == "ESTENDIDO" else "adotado"))
+    print("Bulletproof: project %s." % ("extended" if action == "EXTENDED" else "adopted"))
     print("  .framework-version: %s" % path)
-    print("  camadas propostas: %s" % data["layers"])
+    print("  proposed layers: %s" % data["layers"])
     print("  status:  %s" % data["status"])
-    print("  stacks:  %s" % (", ".join(data["stacks"]) if data["stacks"] else "(nenhum)"))
+    print("  stacks:  %s" % (", ".join(data["stacks"]) if data["stacks"] else "(none)"))
     if signals:
-        print("  capacidades detetadas:")
+        print("  detected capabilities:")
         for s in signals:
             print("   + %s" % s)
     qs = capmod.confirm_questions(caps)
     if qs:
-        print("  CONFIRMA (o que nao consigo ver do repositorio):")
+        print("  CONFIRM (what I cannot see from the repository):")
         for q in qs:
             print("   ? %s" % q)
     if data["status"] == "bootstrapping":
-        print("  proximo: Guia ativo; Exit Lock em espera ate ao primeiro /testar verde.")
+        print("  next: Guide active; Exit Lock on standby until the first green /bulletproof:testar.")
     return 0
 
 
