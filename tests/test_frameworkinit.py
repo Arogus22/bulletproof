@@ -60,6 +60,20 @@ check("camadas [1,2,3]", fv.get("layers") == [1, 2, 3])
 check("config.deploy presente", "deploy" in fv.get("config", {}))
 check("config.prod_db kind=d1", fv.get("config", {}).get("prod_db", {}).get("kind") == "d1")
 
+print("\n[2b] the code_re it writes is the Exit Lock's own default (one source of truth)")
+# covers: scripts/framework-init.py build_config -- a second, narrower copy of the default
+# used to be written here, and config.code_re overrides the guard's default.
+import re as _re
+import sys as _sys
+_sys.path.insert(0, SCRIPTS)
+import codefp as _codefp
+written = fv.get("config", {}).get("code_re")
+check("config.code_re == codefp.DEFAULT_CODE_RE", written == _codefp.DEFAULT_CODE_RE)
+check("C, C++ headers and .kts count as code under the written config",
+      all(_re.search(written or "$^", f, _re.I) for f in ("src/main.c", "lib/x.cpp", "include/x.hpp", "build.gradle.kts")))
+check("docs and config still do not count as code",
+      not any(_re.search(written or "", f, _re.I) for f in ("README.md", "package.json", "notes.txt")))
+
 print("\n[3] deteta stack + --stack forcado")
 d = mkproj("py", files=["pyproject.toml"])
 run_init(d)

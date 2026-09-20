@@ -20,9 +20,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import stacks as stackmod
 import capabilities as capmod
+import codefp
 
 SCHEMA_VERSION = "0.3"
-DEFAULT_CODE_RE = r"\.(ts|tsx|js|jsx|mjs|cjs|svelte|vue|sql|py|go|rs|rb|java|kt|php|cs)$"
 
 
 def read_local(root):
@@ -40,7 +40,10 @@ def read_local(root):
 
 def build_config(caps):
     """Config por camada, conforme as capacidades detetadas."""
-    cfg = {"code_re": DEFAULT_CODE_RE}
+    # One default for "this is code": the Exit Lock's own (codefp). A second copy here had
+    # drifted narrower, and since config.code_re wins, every adopted C/C++/Kotlin-script
+    # project was committing that code unpoliced.
+    cfg = {"code_re": codefp.DEFAULT_CODE_RE}
     if caps.get("deploy_sensitive"):
         cfg["deploy"] = {"protected_branch": "main",
                          "deploy_cmds": ["wrangler deploy", "wrangler pages deploy", "vercel"]}
