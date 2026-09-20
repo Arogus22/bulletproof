@@ -150,7 +150,12 @@ check("grep", not run(repo, 'grep -rn "wrangler deploy" docs/'))
 check("echo", not run(repo, 'echo "to publish: git push origin main"'))
 check("git fetch/pull/log of main", not run(repo, "git fetch origin main && git pull origin main && git log origin/main"))
 
+print("\n[Z] a quoted `<<EOF` on one line does not blind the guard to the push on the next")
+# covers: scripts/cmdparse.py strip_heredocs, through the guard that depends on it
+check("ask", run(repo, 'echo "usage: prog <<EOF to feed input"\ngit push origin main'))
+
 shutil.rmtree(root, ignore_errors=True)
+
 n = sum(1 for _, c in results if c)
 print("\n==> %d/%d PASS" % (n, len(results)))
 raise SystemExit(0 if n == len(results) else 1)

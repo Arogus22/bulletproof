@@ -103,6 +103,17 @@ with tempfile.TemporaryDirectory(prefix="bp-cmdparse-") as tmp:
     check("recursive script stops (limited depth)", len(expanded("npm run loop", api)) <= 6)
     check("no package.json does not blow up", expanded("npm run deploy", "/nonexistent/dir") == [("npm run deploy", "/nonexistent/dir")])
 
+print("\n[C2] a `<<WORD` that never closes must not hide the lines after it")
+# covers: scripts/cmdparse.py strip_heredocs -- a quoted mention of `<<EOF` is not a heredoc;
+# with no closing line, every following line used to be swallowed as "heredoc body", so a
+# `git push` on its own line reached the guards as nothing at all.
+got = texts('echo "usage: prog <<EOF to feed input"\ngit push origin main')
+check("the command after the quoted `<<EOF` is still seen", "git push origin main" in got)
+got = texts("cat <<EOF\nnever closed\nwrangler deploy")
+check("an unterminated real heredoc: over-reading beats going blind", "wrangler deploy" in got)
+got = texts("cat <<EOF\nwrangler deploy\nEOF\ngit status")
+check("a properly closed heredoc still has its body skipped", "wrangler deploy" not in got and "git status" in got)
+
 print("\n[I] weird inputs never blow up")
 for weird in ["", "   ", '"unclosed quote', "&&", ";;;", "(((", "cd", "git", "npm run", "bash -c"]:
     try:

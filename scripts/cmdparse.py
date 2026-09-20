@@ -46,7 +46,12 @@ _WRAPPER_VALUE_FLAGS = {
 
 def strip_heredocs(cmd):
     """Removes the body of each heredoc (`<<EOF ... EOF`). The body is DATA (typically the
-    commit message), not commands; leaving it in would make the guard read prose as shell."""
+    commit message), not commands; leaving it in would make the guard read prose as shell.
+
+    Only a heredoc that actually CLOSES is stripped. `<<EOF` with no closing line is either a
+    mention inside quotes (`echo "use <<EOF"`), where the next lines are real commands, or a
+    heredoc left open, where reading its body as commands can only make a guard ask once too
+    often. Dropping those lines instead made every command after them invisible."""
     lines = cmd.split("\n")
     out, i = [], 0
     while i < len(lines):
@@ -56,9 +61,11 @@ def strip_heredocs(cmd):
         i += 1
         if m:
             end = m.group(2)
-            while i < len(lines) and lines[i].strip() != end:
-                i += 1
-            i += 1  # skip the delimiter line
+            j = i
+            while j < len(lines) and lines[j].strip() != end:
+                j += 1
+            if j < len(lines):
+                i = j + 1  # skip the body and the delimiter line
     return "\n".join(out)
 
 
