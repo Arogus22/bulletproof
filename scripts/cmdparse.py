@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
-"""cmdparse.py -- le uma linha de shell o suficiente para as guardas nao serem cegas.
+"""cmdparse.py -- reads a shell command line well enough that the guards are not blind.
 
-As guardas recebem o comando Bash inteiro, tal como o agente o escreveu. Um agente
-raramente escreve `git push` sozinho: escreve `git add -A && git commit -m x && git push`,
-`cd dashboard/api && npx wrangler deploy`, ou `npm run deploy` (que ESCONDE o
-`wrangler deploy` dentro do package.json). Olhar para a linha como um bloco de texto, ou
-so para o primeiro comando, deixa passar exatamente essas formas.
+The guards get the whole Bash command, exactly as the agent wrote it. An agent rarely
+writes `git push` on its own: it writes `git add -A && git commit -m x && git push`,
+`cd dashboard/api && npx wrangler deploy`, or `npm run deploy` (which HIDES the
+`wrangler deploy` inside package.json). Looking at the command line as a block of text,
+or only at the first command, lets exactly those shapes through.
 
-Este modulo da' a's guardas uma vista honesta:
-  - parte a linha nos comandos simples (&&, ||, ;, |, &, novas linhas), respeitando
-    aspas e saltando o corpo de heredocs (a mensagem de commit nao e' um comando);
-  - segue o diretorio efetivo: `cd <p>`, subshells `( ... )`, `git -C <p>`,
+This module gives the guards an honest view:
+  - it splits the line into simple commands (&&, ||, ;, |, &, newlines), respecting
+    quotes and skipping heredoc bodies (a commit message is not a command);
+  - it follows the effective directory: `cd <p>`, subshells `( ... )`, `git -C <p>`,
     `npm --prefix <p>`, `pnpm -C <p>`, `yarn --cwd <p>`;
-  - expande scripts do package.json (`npm run x`, `npm test`, `pnpm x`, `yarn x`,
-    `bun run x`), recursivamente, para a guarda ver o comando real;
-  - abre `bash -c "..."`, `sh -c '...'` e `eval "..."`: a linha la' dentro e' lida como linha.
+  - it expands package.json scripts (`npm run x`, `npm test`, `pnpm x`, `yarn x`,
+    `bun run x`), recursively, so the guard sees the real command;
+  - it opens up `bash -c "..."`, `sh -c '...'` and `eval "..."`: the line inside is
+    read as a line.
 
-As guardas comparam TOKENS, nao texto: `git commit -m "como correr wrangler deploy"` e
-`grep -rn "wrangler deploy" docs/` mencionam o comando sem o correr, e nao incomodam.
+The guards compare TOKENS, not text: `git commit -m "how to run wrangler deploy"` and
+`grep -rn "wrangler deploy" docs/` mention the command without running it, and do not
+get in the way.
 
-Nao e' um parser de shell completo, nem tenta ser. Na duvida devolve o texto tal como
-esta', e cabe a' guarda decidir (dentro do perimetro, as guardas da camada 3 sao
+It is not a complete shell parser, and does not try to be. When in doubt it returns the
+text as it is, and the guard decides (inside the perimeter, the layer 3 guards are
 fail-closed).
 """
 import json
@@ -31,7 +33,7 @@ import shlex
 MAX_SCRIPT_DEPTH = 3
 _ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-# prefixos que correm OUTRO programa: o programa real vem a seguir
+# prefixes that run ANOTHER program: the real program comes next
 _WRAPPERS = {"sudo", "env", "command", "exec", "time", "nohup", "npx", "bunx", "pnpx"}
 _NPM_LIFECYCLE = {"start", "stop", "restart", "test"}
 _SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
@@ -43,8 +45,8 @@ _WRAPPER_VALUE_FLAGS = {
 
 
 def strip_heredocs(cmd):
-    """Remove o corpo de cada heredoc (`<<EOF ... EOF`). O corpo e' DADOS (tipicamente a
-    mensagem de commit), nao comandos; deixa'-lo la' faria a guarda ler prosa como shell."""
+    """Removes the body of each heredoc (`<<EOF ... EOF`). The body is DATA (typically the
+    commit message), not commands; leaving it in would make the guard read prose as shell."""
     lines = cmd.split("\n")
     out, i = [], 0
     while i < len(lines):
@@ -56,13 +58,13 @@ def strip_heredocs(cmd):
             end = m.group(2)
             while i < len(lines) and lines[i].strip() != end:
                 i += 1
-            i += 1  # salta a linha do delimitador
+            i += 1  # skip the delimiter line
     return "\n".join(out)
 
 
 def split_segments(cmd):
-    """Lista de (texto, abre, fecha): os comandos simples da linha, por ordem, com o
-    numero de subshells que cada um abre e fecha. Separadores dentro de aspas nao contam."""
+    """List of (text, opens, closes): the simple commands on the line, in order, with the
+    number of subshells each one opens and closes. Separators inside quotes do not count."""
     cmd = strip_heredocs(cmd or "")
     segs, cur, quote, i, n = [], [], None, 0, len(cmd)
 
@@ -116,10 +118,11 @@ def split_segments(cmd):
 
 
 def tokens(text):
-    """Tokens do comando simples, sem as atribuicoes de ambiente iniciais (FOO=bar cmd)."""
+    """Tokens of the simple command, without the leading environment assignments
+    (FOO=bar cmd)."""
     try:
         toks = shlex.split(text, posix=True)
-    except ValueError:  # aspas desequilibradas: melhor tokens aproximados do que nenhuns
+    except ValueError:  # unbalanced quotes: approximate tokens beat no tokens at all
         toks = text.split()
     while toks and _ASSIGN.match(toks[0]):
         toks = toks[1:]
@@ -127,15 +130,15 @@ def tokens(text):
 
 
 def program(toks):
-    """(programa, args) saltando wrappers (`npx -y wrangler@4 deploy` -> wrangler, [deploy]).
-    O programa vem sem versao (`wrangler@4` -> `wrangler`) e sem caminho."""
+    """(program, args) skipping wrappers (`npx -y wrangler@4 deploy` -> wrangler, [deploy]).
+    The program comes without a version (`wrangler@4` -> `wrangler`) and without a path."""
     i = 0
     while i < len(toks):
         t = toks[i]
         base = os.path.basename(t)
         if base in _WRAPPERS:
             i += 1
-            # flags do wrapper (npx -y, env -i, sudo -u x ...), com ou sem valor
+            # wrapper flags (npx -y, env -i, sudo -u x ...), with or without a value
             takes_value = _WRAPPER_VALUE_FLAGS.get(base, ())
             while i < len(toks) and (toks[i].startswith("-") or _ASSIGN.match(toks[i])):
                 i += 2 if toks[i] in takes_value else 1
@@ -145,10 +148,10 @@ def program(toks):
 
 
 def has_sequence(toks, words):
-    """True se `words` aparecem como tokens CONSECUTIVOS em `toks`. O primeiro compara-se
-    sem caminho e sem versao (`./node_modules/.bin/wrangler@4` == `wrangler`). E' assim que
-    `npx -y wrangler@4 deploy --minify` conta como `wrangler deploy`, e uma frase entre aspas
-    (que e' UM token) nao."""
+    """True if `words` appear as CONSECUTIVE tokens in `toks`. The first one is compared
+    without a path and without a version (`./node_modules/.bin/wrangler@4` == `wrangler`).
+    That is how `npx -y wrangler@4 deploy --minify` counts as `wrangler deploy`, and a
+    quoted phrase (which is ONE token) does not."""
     if not words:
         return False
     n = len(words)
@@ -162,8 +165,8 @@ def has_sequence(toks, words):
 
 
 def inline_script(toks):
-    """A linha de shell que o comando vai correr por dentro (`bash -c "..."`, `eval "..."`),
-    ou None."""
+    """The shell line that this command will run inside it (`bash -c "..."`, `eval "..."`),
+    or None."""
     prog, args = program(toks)
     if prog in _SHELLS:
         for i, a in enumerate(args):
@@ -181,7 +184,7 @@ def _resolve(base, path):
 
 
 def _flag_value(args, names):
-    """Valor de uma flag `--x <v>` ou `--x=<v>` (a primeira que aparecer), ou None."""
+    """Value of a flag `--x <v>` or `--x=<v>` (the first one that appears), or None."""
     for i, a in enumerate(args):
         for nm in names:
             if a == nm and i + 1 < len(args):
@@ -192,8 +195,8 @@ def _flag_value(args, names):
 
 
 def git_parts(toks):
-    """(subcomando, args, [caminhos de -C]) de um comando git, saltando as opcoes globais
-    (-C <p>, -c <x>, --git-dir ...). (None, [], []) se nao for git."""
+    """(subcommand, args, [-C paths]) of a git command, skipping the global options
+    (-C <p>, -c <x>, --git-dir ...). (None, [], []) if it is not git."""
     prog, args = program(toks)
     if prog != "git":
         return None, [], []
@@ -227,8 +230,8 @@ def _find_package_json(start):
 
 
 def package_script(toks, directory):
-    """Se o comando corre um script de package.json, devolve (corpo, dir_do_package).
-    Cobre `npm run x`, `npm test|start|...`, `pnpm [run] x`, `yarn [run] x`, `bun run x`."""
+    """If the command runs a package.json script, returns (body, package_dir).
+    Covers `npm run x`, `npm test|start|...`, `pnpm [run] x`, `yarn [run] x`, `bun run x`."""
     prog, args = program(toks)
     if prog not in ("npm", "pnpm", "yarn", "bun"):
         return None
@@ -258,7 +261,7 @@ def package_script(toks, directory):
     if not name:
         return None
     if not explicit and prog in ("npm", "bun") and name not in _NPM_LIFECYCLE:
-        return None  # `npm install`, `npm ci`, `bun add`... nao sao scripts
+        return None  # `npm install`, `npm ci`, `bun add`... are not scripts
 
     pkg = _find_package_json(base)
     if not pkg:
@@ -275,8 +278,8 @@ def package_script(toks, directory):
 
 
 def effective_commands(cmd, cwd, _depth=0):
-    """Gera (texto, tokens, dir) para cada comando simples que a linha vai mesmo correr,
-    pela ordem, ja' com o diretorio efetivo e com os scripts de package.json expandidos."""
+    """Yields (text, tokens, dir) for each simple command the line will actually run, in
+    order, already with the effective directory and with package.json scripts expanded."""
     cur, stack = cwd, []
     for text, opens, closes in split_segments(cmd):
         for _ in range(opens):

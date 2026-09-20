@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
-"""PreToolUse hook -- Guarda de BD de producao (Bulletproof, camada 3).
+"""PreToolUse hook -- production database guard (Bulletproof, layer 3).
 
-Pede APROVACAO ("ask") antes de tocar na base de dados de PRODUCAO, num projeto gerido
-com a camada 3 ligada e config.prod_db. Suporta Cloudflare D1 (o stack do Dashboard):
-protege a BD REMOTA (producao), deixa passar a LOCAL (desenvolvimento).
+Asks for APPROVAL ("ask") before touching the PRODUCTION database, in a managed project
+with layer 3 on and config.prod_db. Supports Cloudflare D1 (the stack of the first
+project that adopted the plugin): it protects the REMOTE database (production) and lets
+the LOCAL one (development) through.
 
-Superficie:
+Surface:
   - Bash, `wrangler d1 ...`:
-      execute --remote de escrita / --file, migrations apply --remote -> ask
-      delete, time-travel restore (sao SEMPRE remotos: nao tem flag --remote) -> ask
-      sem --remote (local de dev) -> passa; SELECT puro --remote -> passa
-  - Bash, `wrangler dev --remote`: o servidor local fica ligado a' D1 de PRODUCAO, e
-    qualquer pedido de escrita feito a esse servidor escreve em producao -> ask
-  - Bash, scripts do package.json (`npm run db:migrate:remote`, `npm run dev`): a guarda
-    expande o script e julga o comando real.
-  - Bash, `drizzle-kit push|migrate|studio` quando o drizzle.config usa o driver `d1-http`:
-    fala com a D1 remota por HTTP, sem passar pelo wrangler -> ask.
-  - MCP: tools de D1 (mcp__*d1*) de escrita/query-com-escrita -> ask; listagens/leituras
-    -> passa. Tools genericas da Cloudflare (ex.: `execute`, que corre chamadas a' API)
-    sao julgadas pelo input: so interessam se tocarem em D1.
+      execute --remote that writes / --file, migrations apply --remote -> ask
+      delete, time-travel restore (ALWAYS remote: they have no --remote flag) -> ask
+      without --remote (local dev) -> passes; a pure SELECT --remote -> passes
+  - Bash, `wrangler dev --remote`: the local server is connected to the PRODUCTION D1,
+    and any write request made to that server is written to production -> ask
+  - Bash, package.json scripts (`npm run db:migrate:remote`, `npm run dev`): the guard
+    expands the script and judges the real command.
+  - Bash, `drizzle-kit push|migrate|studio` when drizzle.config uses the `d1-http` driver:
+    it talks to the remote D1 over HTTP, without going through wrangler -> ask.
+  - MCP: D1 tools (mcp__*d1*) that write, or query with writes in them -> ask; listings
+    and reads -> pass. Generic Cloudflare tools (for example `execute`, which runs API
+    calls) are judged by their input: they only matter if they touch D1.
 
-A linha Bash e' lida comando a comando, com o diretorio efetivo (cmdparse), por isso um
-`cd dashboard/api && ...` ou uma sessao aberta fora do projeto nao cegam a guarda.
+The Bash command line is read command by command, with the effective directory
+(cmdparse), so a `cd dashboard/api && ...`, or a session opened outside the project, do
+not blind the guard.
 
-Fail-CLOSED no perimetro (--remote com SQL nao classificavel, ou --file, pede aprovacao).
-Fail-open so no parse do payload e fora do perimetro (nao gerido / camada 3 off / sem prod_db).
+Fail-CLOSED inside the perimeter (--remote with SQL that cannot be classified, or --file,
+asks for approval). Fail-open only on the payload parse and outside the perimeter (not
+managed / layer 3 off / no prod_db).
 """
 import json
 import os
@@ -39,7 +42,7 @@ import cmdparse
 WRITE_KW = re.compile(r"(?i)\b(insert|update|delete|alter|drop|create|truncate|replace|"
                       r"merge|grant|revoke|reindex|vacuum|attach)\b")
 READ_START = re.compile(r"(?is)^\s*(select|with|explain|pragma)\b")
-# numa chamada generica a' API: metodos que alteram, para alem do SQL de escrita
+# in a generic API call: the methods that change things, on top of write SQL
 API_WRITE = re.compile(r"(?i)\b(DELETE|PUT|PATCH)\b")
 D1_IN_INPUT = re.compile(r"(?i)(/d1/|\bd1[_\s-]?database|\bd1\b)")
 
@@ -52,7 +55,8 @@ def ask(reason):
 
 
 def is_write_sql(sql):
-    """True se o SQL parece escrita OU nao e' classificavel como leitura pura (fail-closed)."""
+    """True if the SQL looks like a write OR cannot be classified as a pure read
+    (fail-closed)."""
     sql = (sql or "").strip()
     if not sql:
         return True
@@ -73,7 +77,7 @@ def has_flag(args, name):
 
 
 def guard_wrangler(text, args):
-    """`args` sao os tokens a seguir a `wrangler`."""
+    """`args` are the tokens that follow `wrangler`."""
     words = [a for a in args if not a.startswith("-")]
     remote = has_flag(args, "--remote")
 
@@ -88,7 +92,7 @@ def guard_wrangler(text, args):
         return
     sub = words[1:3]
 
-    # Sempre remotos (nao existe versao local): destroem ou sobrescrevem a producao.
+    # Always remote (there is no local version): they destroy or overwrite production.
     if sub[:1] == ["delete"]:
         ask("`wrangler d1 delete` DELETES the entire PRODUCTION database (D1). Approve?")
     if sub[:2] == ["time-travel", "restore"]:
@@ -96,7 +100,7 @@ def guard_wrangler(text, args):
             "earlier point, overwriting its current state. Approve?")
 
     if not remote:
-        return  # D1 local (dev) -> passa
+        return  # local D1 (dev) -> passes
     if sub[:2] == ["migrations", "apply"]:
         ask("`wrangler d1 migrations apply --remote` changes the PRODUCTION database (D1). Approve?")
     if sub[:1] == ["execute"]:
@@ -117,8 +121,9 @@ def guard_wrangler(text, args):
 
 
 def drizzle_targets_remote(directory):
-    """True se o drizzle.config mais proximo usa o driver d1-http (D1 remota por HTTP), ou
-    se existe e nao o consigo ler. False se nao ha' config ou se aponta para outro sitio."""
+    """True if the nearest drizzle.config uses the d1-http driver (remote D1 over HTTP),
+    or if it exists and cannot be read. False if there is no config, or if it points
+    somewhere else."""
     cur = directory
     while True:
         for name in ("drizzle.config.ts", "drizzle.config.js", "drizzle.config.mjs",
@@ -129,7 +134,7 @@ def drizzle_targets_remote(directory):
                     with open(cand, encoding="utf-8", errors="replace") as f:
                         return "d1-http" in f.read()
                 except Exception:
-                    return True  # existe mas nao se le: no perimetro, a duvida pede aprovacao
+                    return True  # present but unreadable: in the perimeter, doubt means ask
         parent = os.path.dirname(cur)
         if parent == cur or os.path.isfile(os.path.join(cur, gate.FRAMEWORK_FILE)):
             return False
@@ -139,7 +144,7 @@ def drizzle_targets_remote(directory):
 def guard_drizzle(args, directory):
     words = [a for a in args if not a.startswith("-")]
     if not words or words[0] not in ("push", "migrate", "studio"):
-        return  # generate, pull, check, drop: ficheiros locais ou leitura
+        return  # generate, pull, check, drop: local files or reads
     if not drizzle_targets_remote(directory):
         return
     if words[0] == "studio":
@@ -166,8 +171,9 @@ def guard_mcp(tool, tool_input):
     lop = op.lower()
 
     if "d1" not in low:
-        # Tool generica (ex.: mcp__cloudflare__execute): so' interessa se EXECUTA (uma
-        # pesquisa de documentacao sobre "delete d1" nao toca em nada) e se o input tocar em D1.
+        # Generic tool (for example mcp__cloudflare__execute): it only matters if it RUNS
+        # something (a docs search about "delete d1" touches nothing) and if the input
+        # touches D1.
         if not any(k in lop for k in ("execut", "run", "request", "api", "call", "fetch", "invoke")):
             return
         blob = json.dumps(tool_input or {}, ensure_ascii=False)
@@ -176,10 +182,10 @@ def guard_mcp(tool, tool_input):
         if WRITE_KW.search(blob) or API_WRITE.search(blob):
             ask("'%s' is about to change the PRODUCTION database (D1) through the Cloudflare "
                 "API. Approve?" % op)
-        return  # leitura de D1 -> passa
+        return  # reading D1 -> passes
 
     if "list" in lop or "get" in lop:
-        return  # listagens/leituras
+        return  # listings and reads
     if any(k in lop for k in ("quer", "execut", "sql", "raw")):
         sql = ((tool_input or {}).get("sql") or (tool_input or {}).get("query")
                or (tool_input or {}).get("command") or "")
