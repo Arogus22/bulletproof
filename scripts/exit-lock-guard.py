@@ -151,9 +151,9 @@ def main():
     if not ok:
         log_block(repo, fp, cmd, payload.get("session_id"))
         sys.stderr.write(
-            "BLOQUEADO (Exit Lock): este commit toca codigo que nao esta provado verde. "
-            "Corre /testar; se passar, ele carimba o verde e o commit passa. "
-            "Se ja testaste e mexeste no codigo a seguir, testa outra vez."
+            "BLOCKED (Exit Lock): this commit touches code that is not proven green. "
+            "Run /bulletproof:testar; if it passes, it stamps the green and the commit goes "
+            "through. If you already tested and changed the code afterwards, test again."
         )
         sys.exit(2)
 

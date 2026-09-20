@@ -79,7 +79,7 @@ check("commit de codigo sujo PASSA (exit 0): lock em espera", rc == 0)
 
 print("\n[3] /testar verde -> PROMOVE a active (sem hand-edit) + carimba")
 rc, out = run_testar(repo)
-check("/testar verde (rc0)", rc == 0 and "VERDE" in out)
+check("/testar verde (rc0)", rc == 0 and "GREEN" in out)
 check("status promovido a 'active' automaticamente", status_of(repo) == "active")
 check("reporta a promocao", "active" in out)
 
@@ -87,7 +87,7 @@ print("\n[4] agora active: mexer no codigo e o commit BLOQUEIA")
 with open(os.path.join(repo, "app.py"), "a") as f:
     f.write("\ndef mul(a, b):\n    return a * b\n")  # suja de novo, invalida o verde
 rc, err = run_guard(repo)
-check("Exit Lock bloqueia (exit 2)", rc == 2 and "BLOQUEADO" in err)
+check("Exit Lock bloqueia (exit 2)", rc == 2 and "BLOCKED" in err)
 
 print("\n[5] /testar verde de novo -> carimba o novo estado -> commit passa")
 rc, out = run_testar(repo)

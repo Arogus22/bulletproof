@@ -73,8 +73,8 @@ def main(argv):
     start = os.path.abspath(argv[0]) if argv else os.getcwd()
     fvdata = gate.managed_project(start)
     if fvdata is None:
-        print("testar: este projeto nao esta adotado pelo Bulletproof. "
-              "Corre primeiro /bulletproof:framework-init.")
+        print("testar: this project is not adopted by Bulletproof. "
+              "Run /bulletproof:framework-init first.")
         return 2
 
     root = gate.root_of(start) or start
@@ -82,8 +82,8 @@ def main(argv):
     overrides = fvdata.get("tests") if isinstance(fvdata.get("tests"), dict) else {}
 
     if not declared:
-        print("testar: nenhum stack declarado nem detetado. Adiciona um stack "
-              "(/bulletproof:framework-init --stack <s>) ou um manifesto.")
+        print("testar: no stack declared or detected. Add one "
+              "(/bulletproof:framework-init --stack <s>) or a manifest file.")
         return 2
 
     plan = []
@@ -92,11 +92,11 @@ def main(argv):
         if cmd:
             plan.append((s, cmd))
         else:
-            print("testar: aviso, sem comando de teste para o stack '%s' "
-                  "(define em .framework-version[\"tests\"][\"%s\"])." % (s, s))
+            print("testar: warning, no test command for stack '%s' "
+                  "(set one in .framework-version[\"tests\"][\"%s\"])." % (s, s))
 
     if not plan:
-        print("testar: nenhum comando de teste para correr.")
+        print("testar: no test command to run.")
         return 2
 
     failures = []
@@ -107,18 +107,18 @@ def main(argv):
 
     if failures:
         log_red(root, {"failed": failures}, fingerprint(root))
-        print("\ntestar: VERMELHO -- %d de %d camada(s) falhou. Nada carimbado; o Exit "
-              "Lock continua a bloquear commits de codigo. Corrige e corre outra vez."
+        print("\ntestar: RED. %d of %d test suite(s) failed. Nothing stamped; the Exit "
+              "Lock keeps blocking code commits. Fix it and run again."
               % (len(failures), len(plan)))
         return 1
 
     # verde: promove a 'active' no 1o verde (arma o Exit Lock) e carimba via mark-green
     promoted = promote_to_active(root)
     subprocess.run(["bash", os.path.join(HERE, "mark-green.sh"), root])
-    print("\ntestar: VERDE -- todas as camadas passaram. Verde carimbado; o commit de "
-          "codigo passa a ser permitido.")
+    print("\ntestar: GREEN. Every test suite passed. Green stamped; code commits are "
+          "now allowed.")
     if promoted:
-        print("  projeto promovido a 'active': o Exit Lock passa a policiar os commits de codigo.")
+        print("  project promoted to 'active': the Exit Lock now polices code commits.")
     return 0
 
 

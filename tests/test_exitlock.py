@@ -87,7 +87,7 @@ print("\n[A] commit de codigo nao-verde num projeto gerido -> BLOQUEIA")
 r1 = mk_repo("managed1"); dirty_code(r1)
 rc, err = run_guard(r1)
 check("bloqueia (exit 2)", rc == 2)
-check("stderr diz BLOQUEADO", "BLOQUEADO" in err)
+check("stderr diz BLOQUEADO", "BLOCKED" in err)
 blocks = [x for x in ledger_lines() if x["event"] == "block"]
 check("ledger ganhou 1 block", len(blocks) == 1)
 check("block com gate=exit_lock e project certo",
@@ -102,7 +102,7 @@ check("mesmo incident nos dois (retries agrupam, nao inflacionam)",
 
 print("\n[B] /testar carimba verde -> destranca")
 mg = sh(["bash", MARKGREEN, r1])
-check("mark-green ok", mg.returncode == 0 and "verde carimbado" in mg.stdout)
+check("mark-green ok", mg.returncode == 0 and "green stamped" in mg.stdout)
 rc, err = run_guard(r1)
 check("agora passa (exit 0)", rc == 0)
 check("ledger ganhou 1 test_green", len([x for x in ledger_lines() if x["event"] == "test_green"]) == 1)

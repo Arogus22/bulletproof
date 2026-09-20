@@ -93,7 +93,7 @@ rc, out, err = run_event("PreToolUse",
     {"tool_name": "Bash", "tool_input": {"command": "git -C %s commit -m x" % proj},
      "cwd": proj, "session_id": "s"}, tool="Bash")
 check("Exit Lock morde (exit 2)", rc == 2)
-check("mensagem BLOQUEADO no stderr", "BLOQUEADO" in err)
+check("mensagem BLOQUEADO no stderr", "BLOCKED" in err)
 
 print("\n[4] matcher: PreToolUse 'Bash' nao casa outra tool (ex.: Edit)")
 check("um Edit nao dispararia o Exit Lock", hooks_for("PreToolUse", tool="Edit") == [])

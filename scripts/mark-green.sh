@@ -12,9 +12,9 @@ arg="${1:-.}"
 state_base="${BULLETPROOF_STATE:-$HOME/.claude/state}"
 
 repo=$(git -C "$arg" rev-parse --show-toplevel 2>/dev/null)
-if [ -z "$repo" ]; then echo "mark-green: '$arg' nao e um repo git, ignorado"; exit 0; fi
+if [ -z "$repo" ]; then echo "mark-green: '$arg' is not a git repo, skipped"; exit 0; fi
 fp=$(bash "$here/exit-lock-fp.sh" "$repo")
-if [ -z "$fp" ]; then echo "mark-green: nao consegui calcular o fingerprint"; exit 0; fi
+if [ -z "$fp" ]; then echo "mark-green: could not compute the fingerprint"; exit 0; fi
 # The key is sha256(repo path), computed with python3 exactly as exit-lock-guard.py does.
 # No shasum/sha256sum: neither is on every system, and python3 is already required.
 key=$(python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest())' "$repo")
@@ -24,4 +24,4 @@ mkdir -p "$dir"
 printf '%s' "$fp" > "$dir/last-green"
 # regista o verde no ledger (denominador); best-effort, nunca falha o carimbo
 python3 "$here/ledger.py" test_green mark_green "$repo" --incident-seed "$fp" >/dev/null 2>&1 || true
-echo "Exit Lock: verde carimbado para $repo (fp ${fp:0:12}...)"
+echo "Exit Lock: green stamped for $repo (fp ${fp:0:12}...)"
