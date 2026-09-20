@@ -1,39 +1,50 @@
 ---
-description: "Adota o projeto atual no Bulletproof: deteta as capacidades (BD, deploy), propoe as camadas e escreve o ficheiro de controlo. Confirma contigo o que nao consegue ver."
-argument-hint: "[stacks opcionais, ex: python node]"
+description: "Adopts the current project into Bulletproof: detects the capabilities (database, deploy), proposes the layers and writes the control file. Asks you to confirm what it cannot see."
+argument-hint: "[optional stacks, e.g. python node]"
 disable-model-invocation: true
 allowed-tools: Bash(python3 *) Read Edit
 ---
 
 # Framework Init (Bulletproof)
 
-Adota o projeto atual no plugin: deteta as capacidades e propoe as camadas.
+Adopts the current project into the plugin: detects the capabilities and proposes the
+layers.
 
-Passos:
+Steps:
 
-1. Corre o script de adocao (se $ARGUMENTS trouxer stacks, passa cada um com `--stack`):
+1. Run the adoption script (if $ARGUMENTS carries stacks, pass each one with `--stack`):
 
    ```bash
    python3 ${CLAUDE_PLUGIN_ROOT}/scripts/framework-init.py .
    ```
 
-2. Mostra ao utilizador, em linguagem simples, o que o script reportou: as **camadas
-   propostas**, as **capacidades detetadas** (os sinais), e o **status**.
+2. Show the user, in plain language, what the script reported: the **proposed layers**,
+   the **detected capabilities** (the signals), and the **status**.
 
-3. Se o script imprimiu perguntas de "CONFIRMA" (o que nao consegue ver do repositorio),
-   **faz essas perguntas ao utilizador** e espera a resposta. Exemplos: "este projeto
-   publica em producao?", "escreve numa base de dados de producao?".
+3. If the script printed "CONFIRM" questions (what it cannot see from the repository),
+   **put those questions to the user** and wait for the answer. Examples: "does this
+   project publish to production?", "does it write to a production database?".
 
-4. Se o utilizador confirmar uma capacidade que a detecao nao viu, atualiza o
-   `.framework-version`: acrescenta a **camada 3** ao `layers` e o bloco de config
-   correspondente (`config.deploy` com o branch protegido, e/ou `config.prod_db`). Se o
-   utilizador nao confirmar nada novo, deixa como o script escreveu.
+4. If the user confirms a capability that detection did not see, update the
+   `.framework-version`: add **layer 3** to `layers` and the matching block under
+   `config`. Ask which branch deploys to production and which command publishes by hand,
+   and write exactly these shapes (the guards read these keys):
 
-5. Explica o proximo passo em 1-2 frases: em `bootstrapping`, corre `/testar`; ao primeiro
-   verde o projeto fica `active` e o Exit Lock arma-se. As guardas de producao (camada 3),
-   se ligadas, passam a pedir a tua aprovacao antes de publicar ou escrever na BD de prod.
+   ```json
+   "deploy": { "protected_branch": "main", "deploy_cmds": ["wrangler deploy"] }
+   "prod_db": { "kind": "d1", "guard_remote_only": true }
+   ```
 
-Regras:
-- NAO modifiques codigo da aplicacao.
-- Se o script recusar (ja existe um `.framework-version` legado, sem o marcador do plugin),
-  NAO forces: reporta o que o script disse e para.
+   The database guard only knows Cloudflare D1 today: say so if the project uses another
+   database, and add `prod_db` only for D1. If the user confirms nothing new, leave the
+   file as the script wrote it.
+
+5. Explain the next step in 1-2 sentences: in `bootstrapping`, run `/bulletproof:testar`;
+   on the first green the project becomes `active` and the Exit Lock arms itself. The
+   production guards (layer 3), if switched on, start asking for your approval before
+   publishing or writing to the production database.
+
+Rules:
+- Do NOT modify application code.
+- If the script refuses (a legacy `.framework-version` already exists, without the plugin
+  marker), do NOT force it: report what the script said and stop.
