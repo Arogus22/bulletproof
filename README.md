@@ -72,14 +72,14 @@ It reads files in the repository (the root and up to three levels below it, skip
 |---|---|
 | `package.json`, `pyproject.toml` / `requirements.txt` / `setup.py`, `Cargo.toml`, `go.mod`, `Gemfile` | the stack (node, python, rust, go, ruby), which decides the test command |
 | `wrangler.toml` / `wrangler.jsonc` / `wrangler.json` | the project deploys to production (Cloudflare) |
-| `d1_databases` inside the wrangler file | the project has a production database (Cloudflare D1) |
-| `drizzle.config.ts`, or a `supabase/`, `prisma/` or `migrations/` folder | the project has a production database |
+| `d1_databases` inside the wrangler file | the project has a production database the plugin can guard (Cloudflare D1) |
+| `drizzle.config.ts`, or a `supabase/`, `prisma/` or `migrations/` folder | the project has a production database, of a kind the plugin **cannot guard yet**. It tells you so, and does not pretend otherwise |
 | `vercel.json` | the project deploys to production (Vercel) |
 | a workflow in `.github/workflows` whose file name contains deploy, pages, publish or release | the project deploys to production |
 
-Layers 1 and 2 are always on. Layer 3 (the production guards) is switched on when a deploy or a production database is detected.
+Layers 1 and 2 are always on. Layer 3 (the production guards) is switched on when there is something it can really guard: a deploy, or a Cloudflare D1 database. The database guard knows no other database today. In a Postgres or MySQL project, layer 3 guards your deploys and nothing else, and both the adoption report and the session-start Guide say exactly that.
 
-Detection cannot see everything. A deploy that leaves no trace in the repository (you upload by hand, a server pulls from git) is invisible to it. So when it finds no deploy or no database, the command **asks you**, and if you say yes it adds layer 3 and the matching configuration. Running `/bulletproof:framework-init` again later is safe: it only adds (a new stack, a newly detected capability) and never removes a layer or a setting that is already in the file.
+Detection cannot see everything. A deploy that leaves no trace in the repository (you upload by hand, a server pulls from git) is invisible to it. So when it finds no deploy or no database, the command **asks you**, and if you say yes it adds layer 3 and the matching configuration. Running `/bulletproof:framework-init` again later is safe: it only adds (a new stack, a newly detected capability) and never removes a layer or a setting that is already in the file. The other side of that coin: a layer you removed by hand comes back on the next run if its capability is still detected.
 
 Commit `.framework-version`. It is the project's setting, shared with everyone who works on it.
 
@@ -164,8 +164,10 @@ Each project switches on the layers it needs. They are listed in `.framework-ver
 |---|---|---|---|
 | **1** | `/bulletproof:testar`. Before running, it makes the agent check whether the change is covered by a test and write the missing one (testing what the code should do, not photographing what it does; a behaviour that looks wrong becomes a red test reported as a bug candidate). Then it runs every test suite. | Never blocks. Green stamps the code. Red is recorded and nothing is stamped. | |
 | **2** | **Exit Lock** (on every Bash command) and the **Guide** (at session start). | `git commit` that touches code with no green stamp for that exact code. Exit code 2: the commit does not run, and the agent is told why and what to do. | Commits of docs and config. Everything while the project is still `bootstrapping`. Any command that is not a commit. |
-| **3** | **Production guards.** Only on when the project deploys or has a production database. They never refuse: they hand the decision to you, with a prompt that says what is about to happen. | **Deploy:** `git push` that reaches the protected branch (`main` by default), including an implicit push from that branch, `--all`, `--mirror`; `gh pr merge`; any command in `deploy_cmds` (`wrangler deploy`, `wrangler pages deploy`, `vercel`). **Database (Cloudflare D1):** `wrangler d1 execute --remote` with a write or with `--file`, `migrations apply --remote`, `d1 delete`, `time-travel restore`, `wrangler dev --remote`, `drizzle-kit push / migrate / studio` when the drizzle config uses the `d1-http` driver, and D1 writes through MCP tools. | Pushes to work branches, `--dry-run`, local D1 (no `--remote`), a pure `SELECT` against production, reads and listings. |
+| **3** | **Production guards.** Only on when the project deploys or has a production database. They never refuse: they hand the decision to you, with a prompt that says what is about to happen. | **Deploy:** `git push` that reaches the protected branch (`main` by default), including an implicit push from that branch, `--all`, `--mirror`; `gh pr merge`; any command in `deploy_cmds` (`wrangler deploy`, `wrangler pages deploy`, `vercel`). **Database (Cloudflare D1):** `wrangler d1 execute --remote` with a write or with `--file`, `migrations apply --remote`, `d1 delete`, `time-travel restore`, `wrangler dev --remote`, `drizzle-kit push / migrate / studio` when the drizzle config uses the `d1-http` driver, and D1 writes through MCP tools. | Pushes to work branches, `git push --dry-run`, local D1 (no `--remote`), a pure `SELECT` against production, D1 reads and listings. |
 | 4, 5 | Staging first, and a guard against known regressions. | Planned, not built yet. | |
+
+An entry in `deploy_cmds` matches whenever those words run as a command, whatever the flags: `wrangler deploy --dry-run` and `vercel --version` ask too. Asking once too often is the side the guards err on. If `vercel` is too noisy for you, replace it with the forms you publish with (`vercel deploy`, `vercel --prod`).
 
 The guards read the command line the way it is really written. `git add -A && git commit -m x && git push`, `cd api && npx wrangler deploy`, `npm run deploy` (where the deploy hides inside `package.json`), `git -C <repo> push`, `bash -c "..."` are all seen for what they are. A commit message or a `grep` that merely mentions `wrangler deploy` is not.
 
@@ -197,7 +199,7 @@ This writes to the PRODUCTION database (D1, --remote). Approve this operation?
 
 | To | Do this |
 |---|---|
-| switch off one layer in a project | remove its number from `layers` in `.framework-version` (remove `3` to stop the production prompts) |
+| switch off one layer in a project | remove its number from `layers` in `.framework-version` (remove `3` to stop the production prompts). A later `/bulletproof:framework-init` puts it back if the capability is still detected |
 | put the Exit Lock back on standby | set `"status": "bootstrapping"`; the next green run arms it again |
 | release a project completely | delete `.framework-version`, or remove the `"plugin": "bulletproof"` line from it |
 | switch the plugin off everywhere | `claude plugin disable bulletproof@bulletproof` (and `enable` to bring it back) |
@@ -237,7 +239,9 @@ Changes to `.framework-version` take effect on the next command. Disabling or un
 | `stacks`, `tests` | which test suites `/bulletproof:testar` runs, and with which command. |
 | `config.code_re` | what counts as code for the Exit Lock. Anything that does not match is docs or config. |
 | `config.deploy` | the branch that deploys to production, and the commands that publish by hand. Add your own (`fly deploy`, `netlify deploy --prod`, ...). |
-| `config.prod_db` | switches the database guard on. |
+| `config.prod_db` | switches the Cloudflare D1 guard on. No other database is guarded, and the fields inside are not read yet. |
+
+**`tests` is run through a shell, and the file is committed.** Treat a change to `.framework-version` the way you treat a change to a CI script: review it in pull requests. Whoever can edit it decides what runs on your machine the next time you call `/bulletproof:testar`.
 
 Everything else the plugin keeps lives outside your repository, in `~/.claude/state/` (the green stamps and the ledger). Set `BULLETPROOF_STATE` and `BULLETPROOF_LEDGER` to move them.
 
@@ -248,7 +252,7 @@ Everything else the plugin keeps lives outside your repository, in `~/.claude/st
 - git
 - bash
 
-macOS and Linux. The test suite runs on both on every push. Windows has not been tried; WSL is the likely way in.
+macOS and Linux. The test suite runs on both, on Python 3.9 and the current 3.x, on every push to `main` and on every pull request. Windows has not been tried; WSL is the likely way in.
 
 ## Running the plugin's own tests
 
