@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""testar.py -- corre a camada de testes do projeto e carimba verde se passar.
+"""testar.py -- runs the project's test layer and stamps green if it passes.
 
-Peca central do Bulletproof. Le os stacks do .framework-version (ou deteta-os) e
-corre o comando de teste de cada um (override em .framework-version["tests"][stack],
-senao um default por stack). Depois:
-  - todas verdes   -> chama mark-green.sh (o Exit Lock passa a deixar commitar; o
-                      mark-green e' quem regista o test_green no ledger).
-  - alguma vermelha -> regista test_red no ledger (a falha/bug apanhado) e reporta;
-                      NAO carimba (o Exit Lock continua a bloquear commits de codigo).
+Central piece of Bulletproof. It reads the stacks from .framework-version (or detects
+them) and runs the test command of each one (override in
+.framework-version["tests"][stack], otherwise a default per stack). Then:
+  - all green    -> calls mark-green.sh (the Exit Lock now allows committing;
+                    mark-green is the one that records the test_green in the ledger).
+  - any one red  -> records test_red in the ledger (the failure/bug caught) and reports
+                    it; does NOT stamp (the Exit Lock keeps blocking code commits).
 
-Uso: python3 testar.py [dir]   (default: diretorio atual)
-So age em projetos geridos pelo plugin (a porta fv.py).
-Override por env (testes): BULLETPROOF_STATE, BULLETPROOF_LEDGER.
+Usage: python3 testar.py [dir]   (default: current directory)
+It only acts on projects managed by the plugin (the gate, fv.py).
+Env overrides (tests): BULLETPROOF_STATE, BULLETPROOF_LEDGER.
 """
 import json
 import os
@@ -41,7 +41,7 @@ def fingerprint(root):
 
 
 def log_red(root, detail, seed):
-    """Regista a falha apanhada no ledger. Best-effort, nunca rebenta."""
+    """Records the caught failure in the ledger. Best-effort, it never breaks."""
     try:
         import ledger
         ledger.record(event="test_red", gate="testar", project=root,
@@ -51,9 +51,9 @@ def log_red(root, detail, seed):
 
 
 def promote_to_active(root):
-    """No primeiro verde, promove o projeto de 'bootstrapping' para 'active' no
-    .framework-version, armando o Exit Lock. Idempotente (se ja active, no-op).
-    Best-effort: se falhar, o carimbo verde acontece na mesma."""
+    """On the first green, promotes the project from 'bootstrapping' to 'active' in the
+    .framework-version, arming the Exit Lock. Idempotent (if already active, a no-op).
+    Best-effort: if it fails, the green stamp happens all the same."""
     path = os.path.join(root, ".framework-version")
     try:
         with open(path) as f:
@@ -112,7 +112,7 @@ def main(argv):
               % (len(failures), len(plan)))
         return 1
 
-    # verde: promove a 'active' no 1o verde (arma o Exit Lock) e carimba via mark-green
+    # green: promote to 'active' on the 1st green (arms the Exit Lock), stamp via mark-green
     promoted = promote_to_active(root)
     subprocess.run(["bash", os.path.join(HERE, "mark-green.sh"), root])
     print("\ntestar: GREEN. Every test suite passed. Green stamped; code commits are "

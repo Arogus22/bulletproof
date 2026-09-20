@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""PreToolUse hook (Bash) -- Exit Lock (Bulletproof, Tier 1), versao plugin.
+"""PreToolUse hook (Bash) -- Exit Lock (Bulletproof, layer 2), plugin version.
 
-Bloqueia `git commit` quando o commit toca CODIGO que nao esta provado verde (sem
-um marcador -- carimbado por mark-green.sh via /testar -- que corresponda ao estado
-atual do codigo). So age em projetos GERIDOS pelo plugin (a porta fv.py): um repo
-sem o marcador, como o FA legado ou qualquer outro, passa SEMPRE. Commits so de
-docs/config nao sao bloqueados. Fail-open: qualquer erro ou ambiente inesperado ->
-NAO bloqueia (sai com codigo != 2).
+Blocks `git commit` when the commit touches CODE that is not proven green (no marker,
+stamped by mark-green.sh via /testar, matching the current state of the code). It only
+acts on projects MANAGED by the plugin (the gate, fv.py): a repo without the marker, be
+it a legacy setup or any other, ALWAYS goes through. Commits of only docs/config are not
+blocked. Fail-open: any error or unexpected environment -> does NOT block (it exits with
+a code other than 2).
 
-Ficheiros NOVOS contam. O hook corre ANTES do comando, por isso num
-`git add -A && git commit` o codigo novo ainda esta' por adicionar quando a guarda olha;
-o `git diff HEAD` nao o ve. A guarda le a linha (cmdparse): se ha' um `git add` antes do
-commit, junta ao que "este commit toca" o codigo por adicionar que esse `add` vai apanhar.
-E a impressao digital (codefp) inclui sempre o codigo por adicionar, por conteudo, para o
-verde carimbado antes do `git add` continuar valido depois dele.
+NEW files count. The hook runs BEFORE the command, so in a `git add -A && git commit`
+the new code is still untracked when the guard looks; `git diff HEAD` does not see it.
+The guard reads the command line (cmdparse): if there is a `git add` before the commit,
+it adds to what "this commit touches" the untracked code that this `add` will pick up.
+And the fingerprint (codefp) always includes the untracked code, by content, so a green
+stamped before the `git add` stays valid after it.
 
-Override por env (testes): BULLETPROOF_STATE (base do estado), BULLETPROOF_LEDGER.
+Env overrides (tests): BULLETPROOF_STATE (state base), BULLETPROOF_LEDGER.
 """
 import hashlib
 import json
@@ -26,7 +26,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import fv as gate  # a porta do marcador
+import fv as gate  # the marker gate
 import cmdparse
 import codefp
 
@@ -38,9 +38,9 @@ def git(args, cwd):
 
 
 def find_commit(cmd, cwd):
-    """(dir_do_commit, adds) do primeiro `git commit` da linha, ou (None, None).
-    `adds` sao os argumentos dos `git add`/`git stage` que correm ANTES dele, cada um com
-    o diretorio onde corre: e' o que vai entrar no commit e o git ainda nao ve."""
+    """(commit_dir, adds) of the first `git commit` on the command line, or (None, None).
+    `adds` are the arguments of the `git add`/`git stage` that run BEFORE it, each with the
+    directory where it runs: it is what will go into the commit and git does not see yet."""
     adds = []
     for _text, toks, directory in cmdparse.effective_commands(cmd, cwd):
         sub, args, _dirs = cmdparse.git_parts(toks)
@@ -52,9 +52,9 @@ def find_commit(cmd, cwd):
 
 
 def untracked_code_being_added(repo, adds, regex):
-    """O codigo por adicionar que os `git add` da linha vao meter no commit. Um caminho
-    explicito de ficheiro conta so' esse ficheiro; tudo o resto (-A, ., pastas, globs)
-    conta todo o codigo por adicionar -- a guarda nao adivinha para o lado permissivo."""
+    """The untracked code that the `git add` on the command line will put into the commit.
+    An explicit file path counts only that file; everything else (-A, ., folders, globs)
+    counts all the untracked code: the guard does not guess on the permissive side."""
     if not adds:
         return []
     pending = [p for p in codefp.untracked(repo) if regex.search(p)]
@@ -66,7 +66,7 @@ def untracked_code_being_added(repo, adds, regex):
         flags = [a for a in args if a.startswith("-")]
         specs = [a for a in args if not a.startswith("-")]
         if any(f in ("-u", "--update") for f in flags):
-            continue  # `add -u` so' atualiza ficheiros ja' seguidos: nao traz codigo novo
+            continue  # `add -u` only updates tracked files: it brings in no new code
         if not specs:
             if any(f in ("-A", "--all") for f in flags):
                 wide = True
@@ -78,12 +78,12 @@ def untracked_code_being_added(repo, adds, regex):
                 if rel in pending:
                     picked.add(rel)
             else:
-                wide = True  # pasta, ".", glob: nao adivinho para o lado permissivo
+                wide = True  # folder, ".", glob: no guessing on the permissive side
     return pending if wide else sorted(picked)
 
 
 def log_block(repo, fp, cmd, session):
-    """Grava a intervencao no ledger. Best-effort: nunca rebenta o hook."""
+    """Writes the intervention to the ledger. Best-effort: it never breaks the hook."""
     try:
         import ledger
         ledger.record(event="block", gate="exit_lock", project=repo,
@@ -102,7 +102,7 @@ def main():
     if payload.get("tool_name") != "Bash":
         sys.exit(0)
     cmd = payload.get("tool_input", {}).get("command", "") or payload.get("command", "")
-    # so morde num git commit (nao em status/push/merge)
+    # only bites on a git commit (not on status/push/merge)
     if not re.search(r"\bcommit\b", cmd):
         sys.exit(0)
 
@@ -111,36 +111,37 @@ def main():
     if work is None:
         sys.exit(0)
 
-    # PORTA: so age em projetos geridos pelo plugin. Sem marca -> passa (fail-open).
+    # THE GATE: only acts on projects managed by the plugin. No marker -> passes
+    # (fail-open).
     fvdata = gate.managed_project(work)
     if fvdata is None:
         sys.exit(0)
-    # O Exit Lock so morde quando o projeto esta "active" (ha camada de testes que
-    # carimba verde). Em "bootstrapping" (sem testes ainda) fica em espera -> passa.
+    # The Exit Lock only bites when the project is "active" (there is a test layer that
+    # stamps green). In "bootstrapping" (no tests yet) it waits -> passes.
     if fvdata.get("status") != "active":
         sys.exit(0)
-    # Camada 2 so liga se estiver nas layers ativas (invariante: camada so liga por
-    # layers). Um v0.2 sem layers mapeia para [1, 2], portanto a 2 esta la.
+    # Layer 2 only turns on if it is in the active layers (invariant: a layer turns on
+    # only through layers). A v0.2 without layers maps to [1, 2], so 2 is in there.
     if 2 not in gate.layers_of(fvdata):
         sys.exit(0)
 
     try:
         repo = git(["rev-parse", "--show-toplevel"], work).strip()
         if not repo:
-            sys.exit(0)  # nao e repo -> fail-open
+            sys.exit(0)  # not a repo -> fail-open
 
         code_re = codefp.code_regex(fvdata)
         touched = codefp.changed_code(repo, code_re, include_untracked=False)
         touched += untracked_code_being_added(repo, adds, code_re)
         if not touched:
-            sys.exit(0)  # so docs/config -> nao morde
+            sys.exit(0)  # only docs/config -> does not bite
 
         fp = subprocess.run(
             ["bash", os.path.join(HERE, "exit-lock-fp.sh"), repo],
             capture_output=True, text=True,
         ).stdout.strip()
         if not fp:
-            sys.exit(0)  # nao consegui calcular -> fail-open
+            sys.exit(0)  # could not compute it -> fail-open
 
         key = hashlib.sha256(repo.encode()).hexdigest()
         marker = os.path.join(STATE_BASE, "exit-lock", key, "last-green")

@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-"""codefp.py -- a impressao digital do CODIGO de um repo git: o que o Exit Lock prova verde.
+"""codefp.py -- the CODE fingerprint of a git repo: what the Exit Lock proves green.
 
-Implementacao unica, usada pelos dois lados do Exit Lock (o carimbo do /testar e a guarda
-do commit) atraves do exit-lock-fp.sh, para o calculo ser identico por construcao.
+Single implementation, used by both sides of the Exit Lock (the /testar stamp and the
+commit guard) through exit-lock-fp.sh, so the calculation is identical by construction.
 
-fingerprint = sha256( HEAD + manifesto )
-manifesto   = para cada ficheiro de CODIGO que difere do HEAD, o caminho e o sha256 do
-              conteudo no disco (ou DELETED). "Difere do HEAD" inclui os ficheiros NOVOS,
-              estejam ja' adicionados ou ainda por adicionar.
+fingerprint = sha256( HEAD + manifest )
+manifest    = for each CODE file that differs from HEAD, the path and the sha256 of the
+              content on disk (or DELETED). "Differs from HEAD" includes NEW files,
+              whether already added or still untracked.
 
-Porque' assim (as tres falhas que isto fecha, provadas no Dashboard em 2026-09):
-  1. `git diff HEAD` nao ve ficheiros por adicionar. `git add -A && git commit` com codigo
-     novo passava SEM verde: o hook corre antes do `add`, quando o ficheiro ainda nao existe
-     para o git.
-  2. Carimbar verde e so depois fazer `git add` de um ficheiro novo mudava a impressao
-     digital sem o conteudo ter mudado: commit bloqueado sem razao. O manifesto por conteudo
-     e' igual antes e depois do `add`.
-  3. So' o codigo conta. Atualizar o CHANGELOG entre o /testar e o commit, ou um ficheiro
-     de notas/outputs a aparecer na pasta, deixou de invalidar um verde que continua valido.
-     Coerente com a regra que ja' existia: commits so' de docs/config nao sao policiados.
+Why this way (the three failures it closes, proven on a real project in 2026-09):
+  1. `git diff HEAD` does not see untracked files. `git add -A && git commit` with new
+     code went through silently WITHOUT a green: the hook runs before the `add`, when the
+     file does not exist yet for git.
+  2. Stamping green and only then running `git add` on a new file changed the fingerprint
+     without the content having changed: commit blocked for no reason. The manifest by
+     content is the same before and after the `add`.
+  3. Only code counts. Updating the CHANGELOG between /testar and the commit, or a notes
+     or output file appearing in the folder, no longer invalidates a green that is still
+     valid. Consistent with the rule that already existed: commits of only docs/config
+     are not policed.
 """
 import hashlib
 import os
@@ -35,7 +36,7 @@ DEFAULT_CODE_RE = (r"\.(ts|tsx|js|jsx|mjs|cjs|svelte|vue|sql|py|go|rs|rb|java|kt
 
 
 def code_regex(fvdata):
-    """O regex de "isto e' codigo" do projeto (config.code_re), ou o default."""
+    """The project's "this is code" regex (config.code_re), or the default one."""
     pat = ((fvdata or {}).get("config") or {}).get("code_re") if isinstance(fvdata, dict) else None
     if isinstance(pat, str) and pat:
         try:
@@ -58,14 +59,14 @@ def has_head(repo):
 
 
 def tracked_changes(repo):
-    """Caminhos que diferem do HEAD no indice ou no disco (inclui novos ja' adicionados)."""
-    if not has_head(repo):  # repo sem commits: tudo o que esta' no indice e' novo
+    """Paths differing from HEAD in the index or on disk (includes new files already added)."""
+    if not has_head(repo):  # repo with no commits: everything in the index is new
         return _zsplit(_git(repo, "ls-files", "-z").stdout)
     return _zsplit(_git(repo, "diff", "HEAD", "--name-only", "-z").stdout)
 
 
 def untracked(repo):
-    """Ficheiros por adicionar, respeitando o .gitignore."""
+    """Untracked files, respecting the .gitignore."""
     return _zsplit(_git(repo, "ls-files", "--others", "--exclude-standard", "-z").stdout)
 
 

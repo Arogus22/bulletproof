@@ -1,9 +1,9 @@
 #!/bin/bash
-# exit-lock-fp.sh -- imprime a impressao digital do CODIGO de um repo git.
-# Ponto de entrada unico dos DOIS lados do Exit Lock (mark-green.sh que carimba,
-# exit-lock-guard.py que verifica), para o calculo ser identico por construcao.
-# O calculo vive no codefp.py (la' esta' o porque' de cada escolha): HEAD + manifesto por
-# conteudo dos ficheiros de codigo que diferem do HEAD, incluindo os novos por adicionar.
+# exit-lock-fp.sh -- prints the CODE fingerprint of a git repo.
+# Single entry point for BOTH sides of the Exit Lock (mark-green.sh, which stamps, and
+# exit-lock-guard.py, which checks), so the calculation is identical by construction.
+# The calculation lives in codefp.py (the why of each choice is there): HEAD + a manifest
+# by content of the code files that differ from HEAD, including the new untracked ones.
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="${1:-$(git rev-parse --show-toplevel 2>/dev/null)}"
 [ -z "$repo" ] && exit 1
