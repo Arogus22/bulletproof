@@ -33,12 +33,12 @@ def _walk_find(root, names, depth=3):
     for dirpath, dirs, files in os.walk(root):
         rel = os.path.relpath(dirpath, root)
         d = 0 if rel == "." else rel.count(os.sep) + 1
-        if d >= depth:
-            dirs[:] = []
         dirs[:] = [x for x in dirs if x not in SKIP_DIRS]
         for n in wanted:
             if n in files or n in dirs:
                 found.append(os.path.join(dirpath, n))
+        if d >= depth:
+            dirs[:] = []  # stop descending only AFTER matching: a folder can be a marker too
     return found
 
 

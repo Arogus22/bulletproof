@@ -64,6 +64,17 @@ print("\n[8] ignores node_modules")
 caps, _ = cap.detect(mk("nm", {"node_modules/foo/wrangler.toml": "[[d1_databases]]\n", "app.py": "x"}))
 check("does not pick up wrangler inside node_modules", not caps["deploy_sensitive"])
 
+print("\n[8b] a folder marker is found as deep as a file marker")
+# covers: scripts/capabilities.py _walk_find -- the depth cut emptied `dirs` BEFORE the match,
+# so at the last level a file marker was seen and a folder marker (migrations/, prisma/,
+# supabase/) was not: a database three folders down meant no database guard.
+check("file marker three folders down (a/b/c/drizzle.config.ts)",
+      cap.detect(mk("deep-file", {"a/b/c/drizzle.config.ts": "export default {}\n"}))[0]["db"])
+check("folder marker three folders down (a/b/c/migrations/)",
+      cap.detect(mk("deep-dir", {"a/b/c/migrations/0001_init.sql": "create table t (id int);\n"}))[0]["db"])
+check("and the depth limit still holds one level further down",
+      not cap.detect(mk("too-deep", {"a/b/c/d/migrations/0001_init.sql": "x\n"}))[0]["db"])
+
 print("\n[9] real-world shape: a monorepo with the worker two levels down (api + frontend)")
 # The layout of the first project that adopted the plugin, rebuilt as a fixture so the
 # proof runs on any machine: nothing at the root, a Cloudflare Worker with D1 and drizzle
