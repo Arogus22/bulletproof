@@ -70,6 +70,13 @@ def promote_to_active(root):
 
 
 def main(argv):
+    # Claude Code runs this through a pipe, where Python would hold its own prints back
+    # while the test command and mark-green.sh write straight through: the `>> [stack] cmd`
+    # header landed after the output it announces. Line buffering keeps the order real.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
     start = os.path.abspath(argv[0]) if argv else os.getcwd()
     fvdata = gate.managed_project(start)
     if fvdata is None:

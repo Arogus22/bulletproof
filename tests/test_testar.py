@@ -89,6 +89,18 @@ check("ledger gained test_red (the caught bug), gate=testar", len(reds) == 1 and
 rc, _ = run_guard(rB)
 check("Exit Lock keeps blocking (not stamped) (exit 2)", rc == 2)
 
+print("\n[B2] piped output reads in the order things happened")
+# covers: scripts/testar.py main -- Claude Code always runs this through a pipe, where
+# Python buffers its own prints while the test command and mark-green.sh write straight
+# through: the `>> [stack] cmd` header used to show up AFTER the output it announces.
+rO = mk_repo("order", "bash -c 'echo SUITE-OUTPUT-MARKER'")
+dirty(rO)
+p = subprocess.run(["python3", TESTAR, rO], capture_output=True, text=True, env=env())
+o = p.stdout
+pos = [o.find(x) for x in (">> [python]", "SUITE-OUTPUT-MARKER", "green stamped", "testar: GREEN")]
+check("header, then the suite's output, then the stamp, then the verdict",
+      all(x >= 0 for x in pos) and pos == sorted(pos))
+
 print("\n[C] unmanaged project -> /testar refuses")
 rC = mk_repo("plain", "bash -c 'exit 0'", managed=False)
 rc, out = run_testar(rC)
