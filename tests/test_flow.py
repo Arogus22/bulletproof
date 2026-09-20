@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Prova do FLUXO COMPLETO (Fase 1, pos-revisao CE): framework-init (bootstrapping)
--> /testar verde PROMOVE 'active' e arma o Exit Lock -> mexer no codigo -> commit
-BLOQUEIA -> /testar verde -> commit passa. Sem editar o .framework-version a' mao
-em lado nenhum. Repos git reais; ledger/estado isolados."""
+"""Proof of the FULL FLOW: framework-init (bootstrapping) -> a green /testar PROMOTES to
+'active' and arms the Exit Lock -> touch the code -> commit BLOCKS -> green /testar ->
+commit passes. No hand-editing .framework-version anywhere. Real git repos; ledger and
+state isolated."""
 import json
 import os
 import shutil
@@ -18,7 +18,7 @@ GUARD = os.path.join(SCRIPTS, "exit-lock-guard.py")
 results = []
 def check(name, cond):
     results.append((name, bool(cond)))
-    print("  %s  %s" % ("PASS" if cond else "FALHA", name))
+    print("  %s  %s" % ("PASS" if cond else "FAIL", name))
 
 root = os.path.realpath(tempfile.mkdtemp(prefix="bp-flow-"))
 LEDGER = os.path.join(root, "ledger.jsonl")
@@ -48,7 +48,7 @@ def run_guard(repo):
                        capture_output=True, text=True, env=env())
     return p.returncode, p.stderr
 
-# setup: repo git com app.py committed, adotado pelo script real (mecanico -> bootstrapping)
+# setup: git repo with app.py committed, adopted by the real script (mechanical -> bootstrapping)
 repo = os.path.join(root, "proj")
 os.makedirs(repo)
 with open(os.path.join(repo, "app.py"), "w") as f:
@@ -57,9 +57,9 @@ for a in (["git", "init", "-q", repo], ["git", "-C", repo, "config", "user.email
           ["git", "-C", repo, "config", "user.name", "t"], ["git", "-C", repo, "add", "-A"],
           ["git", "-C", repo, "commit", "-q", "-m", "init"]):
     sh(a)
-sh(["python3", INIT, repo, "--stack", "python"])  # cria .framework-version bootstrapping
-# o init mecanico nao configura o comando de teste; fixamos um controlado (simula a
-# camada de testes existir), para o /testar ter um verde real
+sh(["python3", INIT, repo, "--stack", "python"])  # creates .framework-version bootstrapping
+# the mechanical init doesn't configure the test command; we set a controlled one
+# (simulates the test layer existing), so /testar can get a real green
 fvpath = os.path.join(repo, ".framework-version")
 with open(fvpath) as f:
     fv = json.load(f)
@@ -68,33 +68,33 @@ with open(fvpath, "w") as f:
     json.dump(fv, f, indent=2)
     f.write("\n")
 
-print("\n[1] apos framework-init -> status bootstrapping")
+print("\n[1] after framework-init -> status bootstrapping")
 check("status == bootstrapping", status_of(repo) == "bootstrapping")
 
-print("\n[2] em bootstrapping, o Exit Lock esta EM ESPERA")
+print("\n[2] in bootstrapping, the Exit Lock is ON HOLD")
 with open(os.path.join(repo, "app.py"), "a") as f:
-    f.write("\ndef sub(a, b):\n    return a - b\n")  # suja o codigo
+    f.write("\ndef sub(a, b):\n    return a - b\n")  # dirties the code
 rc, _ = run_guard(repo)
-check("commit de codigo sujo PASSA (exit 0): lock em espera", rc == 0)
+check("dirty code commit PASSES (exit 0): lock on hold", rc == 0)
 
-print("\n[3] /testar verde -> PROMOVE a active (sem hand-edit) + carimba")
+print("\n[3] /testar green -> PROMOTES to active (no hand-edit) + stamps")
 rc, out = run_testar(repo)
-check("/testar verde (rc0)", rc == 0 and "GREEN" in out)
-check("status promovido a 'active' automaticamente", status_of(repo) == "active")
-check("reporta a promocao", "active" in out)
+check("/testar green (rc0)", rc == 0 and "GREEN" in out)
+check("status automatically promoted to 'active'", status_of(repo) == "active")
+check("reports the promotion", "active" in out)
 
-print("\n[4] agora active: mexer no codigo e o commit BLOQUEIA")
+print("\n[4] now active: touching the code and the commit BLOCKS")
 with open(os.path.join(repo, "app.py"), "a") as f:
-    f.write("\ndef mul(a, b):\n    return a * b\n")  # suja de novo, invalida o verde
+    f.write("\ndef mul(a, b):\n    return a * b\n")  # dirties it again, invalidates the green
 rc, err = run_guard(repo)
-check("Exit Lock bloqueia (exit 2)", rc == 2 and "BLOCKED" in err)
+check("Exit Lock blocks (exit 2)", rc == 2 and "BLOCKED" in err)
 
-print("\n[5] /testar verde de novo -> carimba o novo estado -> commit passa")
+print("\n[5] /testar green again -> stamps the new state -> commit passes")
 rc, out = run_testar(repo)
-check("/testar verde (rc0)", rc == 0)
-check("continua active, sem re-promover (idempotente)", status_of(repo) == "active")
+check("/testar green (rc0)", rc == 0)
+check("stays active, no re-promotion (idempotent)", status_of(repo) == "active")
 rc, _ = run_guard(repo)
-check("commit passa (exit 0)", rc == 0)
+check("commit passes (exit 0)", rc == 0)
 
 shutil.rmtree(root, ignore_errors=True)
 n = sum(1 for _, c in results if c)

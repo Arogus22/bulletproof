@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Prova do /framework-init (Fase 2): cria/estende o .framework-version v0.3 com as
-camadas derivadas das capacidades detetadas, idempotente/incremental, recusa legado."""
+"""Proof of /bulletproof:framework-init: creates/extends the .framework-version v0.3 with
+layers derived from detected capabilities, idempotent/incremental, refuses a legacy setup."""
 import json
 import os
 import shutil
@@ -15,7 +15,7 @@ FV = os.path.join(SCRIPTS, "fv.py")
 results = []
 def check(name, cond):
     results.append((name, bool(cond)))
-    print("  %s  %s" % ("PASS" if cond else "FALHA", name))
+    print("  %s  %s" % ("PASS" if cond else "FAIL", name))
 
 root = os.path.realpath(tempfile.mkdtemp(prefix="bp-init-"))
 
@@ -41,23 +41,23 @@ def mkproj(name, files=()):
             open(os.path.join(d, fn), "w").close()
     return d
 
-print("\n[1] projeto vazio -> v0.3, bootstrapping, camadas [1,2]")
-d = mkproj("vazio")
+print("\n[1] empty project -> v0.3, bootstrapping, layers [1,2]")
+d = mkproj("empty")
 rc, out = run_init(d)
 fv = read_fv(d)
 check("exit 0", rc == 0)
-check("marcador do plugin", fv.get("plugin") == "bulletproof")
+check("plugin marker", fv.get("plugin") == "bulletproof")
 check("version 0.3", fv.get("version") == "0.3")
 check("status bootstrapping", fv.get("status") == "bootstrapping")
-check("camadas [1,2]", fv.get("layers") == [1, 2])
-check("pergunta pelo que nao viu (CONFIRMA)", "CONFIRM" in out)
+check("layers [1,2]", fv.get("layers") == [1, 2])
+check("asks about what it did not see (CONFIRM)", "CONFIRM" in out)
 
-print("\n[2] projeto Cloudflare + D1 -> camadas [1,2,3] + config")
+print("\n[2] Cloudflare + D1 project -> layers [1,2,3] + config")
 d = mkproj("cf", {"api/wrangler.toml": "[[d1_databases]]\nbinding='DB'\n"})
 rc, out = run_init(d)
 fv = read_fv(d)
-check("camadas [1,2,3]", fv.get("layers") == [1, 2, 3])
-check("config.deploy presente", "deploy" in fv.get("config", {}))
+check("layers [1,2,3]", fv.get("layers") == [1, 2, 3])
+check("config.deploy present", "deploy" in fv.get("config", {}))
 check("config.prod_db kind=d1", fv.get("config", {}).get("prod_db", {}).get("kind") == "d1")
 
 print("\n[2b] the code_re it writes is the Exit Lock's own default (one source of truth)")
@@ -74,7 +74,7 @@ check("C, C++ headers and .kts count as code under the written config",
 check("docs and config still do not count as code",
       not any(_re.search(written or "", f, _re.I) for f in ("README.md", "package.json", "notes.txt")))
 
-print("\n[3] deteta stack + --stack forcado")
+print("\n[3] detects stack + --stack forced")
 d = mkproj("py", files=["pyproject.toml"])
 run_init(d)
 check("stack python", read_fv(d).get("stacks") == ["python"])
@@ -82,19 +82,19 @@ d = mkproj("forced")
 run_init(d, "--stack", "node")
 check("--stack node", read_fv(d).get("stacks") == ["node"])
 
-print("\n[4] idempotente (2x nao muda)")
+print("\n[4] idempotent (running twice does not change it)")
 d = mkproj("idem", files=["go.mod"])
 run_init(d); a = read_fv(d)
 run_init(d); b = read_fv(d)
-check("estavel entre corridas", a == b and b.get("stacks") == ["go"])
+check("stable across runs", a == b and b.get("stacks") == ["go"])
 
-print("\n[5] incremental (novo manifesto estende stacks)")
+print("\n[5] incremental (a new manifest extends stacks)")
 d = mkproj("incr", files=["pyproject.toml"])
 run_init(d)
-check("arranca [python]", read_fv(d).get("stacks") == ["python"])
+check("starts with [python]", read_fv(d).get("stacks") == ["python"])
 open(os.path.join(d, "package.json"), "w").close()
 run_init(d)
-check("estende [node, python]", read_fv(d).get("stacks") == ["node", "python"])
+check("extends to [node, python]", read_fv(d).get("stacks") == ["node", "python"])
 
 print("\n[5b] re-running init never weakens what a human confirmed")
 # covers: scripts/framework-init.py plan() -- layers and config used to be re-derived from
@@ -126,20 +126,20 @@ check("prod_db block added", after.get("config", {}).get("prod_db", {}).get("kin
 check("without touching the confirmed deploy block",
       after.get("config", {}).get("deploy", {}).get("protected_branch") == "production")
 
-print("\n[6] a porta reconhece o v0.3 como gerido")
-d = mkproj("porta")
+print("\n[6] the gate recognizes v0.3 as managed")
+d = mkproj("gate")
 run_init(d)
 p = subprocess.run(["python3", FV, d], capture_output=True, text=True)
-check("porta ABERTA", p.returncode == 0 and "OPEN" in p.stdout)
+check("gate OPEN", p.returncode == 0 and "OPEN" in p.stdout)
 
-print("\n[7] legado (sem marcador) -> recusa, nao sobrescreve")
-d = mkproj("legado")
+print("\n[7] legacy (no marker) -> refuses, does not overwrite")
+d = mkproj("legacy")
 legacy = {"framework": "bulletproof", "version": "0.1", "tiers": [1, 2]}
 with open(os.path.join(d, ".framework-version"), "w") as f:
     json.dump(legacy, f)
 rc, out = run_init(d)
-check("recusa (exit 2)", rc == 2)
-check("ficheiro legado intacto", read_fv(d) == legacy)
+check("refuses (exit 2)", rc == 2)
+check("legacy file untouched", read_fv(d) == legacy)
 
 shutil.rmtree(root, ignore_errors=True)
 n = sum(1 for _, c in results if c)

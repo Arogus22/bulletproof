@@ -13,7 +13,7 @@ import capabilities as cap
 results = []
 def check(name, cond):
     results.append((name, bool(cond)))
-    print("  %s  %s" % ("PASS" if cond else "FALHA", name))
+    print("  %s  %s" % ("PASS" if cond else "FAIL", name))
 
 root = os.path.realpath(tempfile.mkdtemp(prefix="bp-caps-"))
 
@@ -27,42 +27,42 @@ def mk(name, files):
             f.write(content)
     return d
 
-print("\n[1] wrangler + D1 -> db + deploy, camadas [1,2,3]")
+print("\n[1] wrangler + D1 -> db + deploy, layers [1,2,3]")
 d = mk("cf-d1", {"api/wrangler.toml": '[[d1_databases]]\nbinding = "DB"\ndatabase_name = "x"\n', "app.ts": "x"})
 caps, sig = cap.detect(d)
-check("db detetado", caps["db"])
-check("deploy detetado", caps["deploy_sensitive"])
-check("staging nao", not caps["staging"])
+check("db detected", caps["db"])
+check("deploy detected", caps["deploy_sensitive"])
+check("staging not detected", not caps["staging"])
 check("layers [1,2,3]", cap.layers_for(caps) == [1, 2, 3])
 
-print("\n[2] projeto vazio (so codigo) -> [1,2], pergunta pelo que nao viu")
+print("\n[2] empty project (code only) -> [1,2], asks about what it did not see")
 d = mk("plain", {"app.py": "print(1)\n"})
 caps, _ = cap.detect(d)
-check("nada detetado", not any(caps.values()))
+check("nothing detected", not any(caps.values()))
 check("layers [1,2]", cap.layers_for(caps) == [1, 2])
-check("2 perguntas de confirmacao (deploy + BD)", len(cap.confirm_questions(caps)) == 2)
+check("2 confirmation questions (deploy + DB)", len(cap.confirm_questions(caps)) == 2)
 
 print("\n[3] drizzle.config.ts -> db")
-check("db por drizzle", cap.detect(mk("drz", {"drizzle.config.ts": "export default {}\n"}))[0]["db"])
+check("db via drizzle", cap.detect(mk("drz", {"drizzle.config.ts": "export default {}\n"}))[0]["db"])
 
 print("\n[4] supabase/ -> db")
-check("db por supabase/", cap.detect(mk("sb", {"supabase/config.toml": "x\n"}))[0]["db"])
+check("db via supabase/", cap.detect(mk("sb", {"supabase/config.toml": "x\n"}))[0]["db"])
 
 print("\n[5] vercel.json -> deploy")
-check("deploy por vercel", cap.detect(mk("vc", {"vercel.json": "{}\n"}))[0]["deploy_sensitive"])
+check("deploy via vercel", cap.detect(mk("vc", {"vercel.json": "{}\n"}))[0]["deploy_sensitive"])
 
 print("\n[6] .env.staging -> staging")
 d = mk("stg", {"wrangler.toml": "name='x'\n"})
 open(os.path.join(d, ".env.staging"), "w").close()
-check("staging detetado", cap.detect(d)[0]["staging"])
+check("staging detected", cap.detect(d)[0]["staging"])
 
-print("\n[7] deteta em subdir (nao so na raiz)")
+print("\n[7] detects in a subdir (not just at the root)")
 caps, _ = cap.detect(mk("nested", {"packages/api/wrangler.toml": "[[d1_databases]]\n"}))
-check("db+deploy num subdir", caps["db"] and caps["deploy_sensitive"])
+check("db+deploy in a subdir", caps["db"] and caps["deploy_sensitive"])
 
-print("\n[8] ignora node_modules")
+print("\n[8] ignores node_modules")
 caps, _ = cap.detect(mk("nm", {"node_modules/foo/wrangler.toml": "[[d1_databases]]\n", "app.py": "x"}))
-check("nao apanha wrangler em node_modules", not caps["deploy_sensitive"])
+check("does not pick up wrangler inside node_modules", not caps["deploy_sensitive"])
 
 print("\n[9] real-world shape: a monorepo with the worker two levels down (api + frontend)")
 # The layout of the first project that adopted the plugin, rebuilt as a fixture so the

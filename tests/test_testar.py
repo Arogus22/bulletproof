@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Prova do /testar (Fase 2, motor): corre a camada de testes, carimba verde (e
-destranca o Exit Lock) ou regista test_red. Repos git reais; ledger/estado isolados.
-Comandos de teste controlados (bash exit 0/1) para nao depender de runners instalados."""
+"""Proof of /testar: runs the test layer, stamps green (and unlocks the Exit Lock) or
+logs test_red. Real git repos; ledger and state isolated. Controlled test commands
+(bash exit 0/1) so it doesn't depend on installed runners."""
 import json
 import os
 import shutil
@@ -16,7 +16,7 @@ GUARD = os.path.join(SCRIPTS, "exit-lock-guard.py")
 results = []
 def check(name, cond):
     results.append((name, bool(cond)))
-    print("  %s  %s" % ("PASS" if cond else "FALHA", name))
+    print("  %s  %s" % ("PASS" if cond else "FAIL", name))
 
 root = os.path.realpath(tempfile.mkdtemp(prefix="bp-testar-"))
 LEDGER = os.path.join(root, "ledger.jsonl")
@@ -68,31 +68,31 @@ def ledger_lines():
     with open(LEDGER) as f:
         return [json.loads(l) for l in f if l.strip()]
 
-print("\n[A] ciclo completo: codigo sujo -> bloqueia -> /testar verde -> destranca")
+print("\n[A] full cycle: dirty code -> blocks -> /testar green -> unlocks")
 rA = mk_repo("green", "bash -c 'exit 0'")
 dirty(rA)
 rc, _ = run_guard(rA)
-check("antes do testar: Exit Lock bloqueia (exit 2)", rc == 2)
+check("before testar: Exit Lock blocks (exit 2)", rc == 2)
 rc, out = run_testar(rA)
-check("/testar VERDE (rc0)", rc == 0 and "GREEN" in out)
-check("ledger ganhou test_green", any(x["event"] == "test_green" for x in ledger_lines()))
+check("/testar GREEN (rc0)", rc == 0 and "GREEN" in out)
+check("ledger gained test_green", any(x["event"] == "test_green" for x in ledger_lines()))
 rc, _ = run_guard(rA)
-check("depois do testar: commit passa (exit 0)", rc == 0)
+check("after testar: commit passes (exit 0)", rc == 0)
 
-print("\n[B] testes falham -> VERMELHO, test_red, Exit Lock mantem-se")
+print("\n[B] tests fail -> RED, test_red, Exit Lock stays in place")
 rB = mk_repo("red", "bash -c 'exit 1'")
 dirty(rB)
 rc, out = run_testar(rB)
-check("/testar VERMELHO (rc1)", rc == 1 and "RED" in out)
+check("/testar RED (rc1)", rc == 1 and "RED" in out)
 reds = [x for x in ledger_lines() if x["event"] == "test_red"]
-check("ledger ganhou test_red (o bug apanhado), gate=testar", len(reds) == 1 and reds[0]["gate"] == "testar")
+check("ledger gained test_red (the caught bug), gate=testar", len(reds) == 1 and reds[0]["gate"] == "testar")
 rc, _ = run_guard(rB)
-check("Exit Lock continua a bloquear (nao carimbado) (exit 2)", rc == 2)
+check("Exit Lock keeps blocking (not stamped) (exit 2)", rc == 2)
 
-print("\n[C] projeto nao gerido -> /testar recusa")
+print("\n[C] unmanaged project -> /testar refuses")
 rC = mk_repo("plain", "bash -c 'exit 0'", managed=False)
 rc, out = run_testar(rC)
-check("recusa (exit 2), manda correr framework-init", rc == 2 and "framework-init" in out)
+check("refuses (exit 2), tells you to run framework-init", rc == 2 and "framework-init" in out)
 
 shutil.rmtree(root, ignore_errors=True)
 n = sum(1 for _, c in results if c)

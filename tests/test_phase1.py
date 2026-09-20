@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Prova isolada da Fase 1 (esqueleto + porta + Guia). Monta fixtures numa dir
-temporaria isolada e verifica a porta (fv.py) e o Guia (framework-guide.py) sem
-instalar o plugin. Imprime so o veredito por caso."""
+"""Isolated proof of Phase 1 (skeleton + gate + Guide). Builds fixtures in an isolated
+temp dir and checks the gate (fv.py) and the Guide (framework-guide.py) without
+installing the plugin. Prints only the verdict per case."""
 import json
 import os
 import shutil
@@ -16,11 +16,11 @@ GUIDE = os.path.join(SCRIPTS, "framework-guide.py")
 results = []
 def check(name, cond):
     results.append((name, cond))
-    print("  %s  %s" % ("PASS" if cond else "FALHA", name))
+    print("  %s  %s" % ("PASS" if cond else "FAIL", name))
 
-# tempfile default (/var/folders) -> isolado, sem .framework-version acima, para
-# a prova de "subir a arvore" nao apanhar um framework de um projeto pai.
-root = tempfile.mkdtemp(prefix="bp-fase1-")
+# tempfile default (/var/folders) -> isolated, no .framework-version above, so the
+# "climb the tree" proof doesn't pick up a framework from a parent project.
+root = tempfile.mkdtemp(prefix="bp-phase1-")
 
 def mk(rel, fv=None, extra_files=()):
     d = os.path.join(root, rel)
@@ -41,11 +41,11 @@ active = mk("managed-active", {"framework": "bulletproof", "version": "0.2",
 drift = mk("managed-active-drift", {"framework": "bulletproof", "version": "0.2",
           "plugin": "bulletproof", "status": "active", "stacks": ["python"], "tiers": [1, 2]},
           extra_files=["pyproject.toml", "package.json"])
-legacy = mk("legacy-fa", {"framework": "bulletproof", "version": "0.1", "tiers": [1, 2]})
-plain = mk("plain-project")  # sem .framework-version
-subdir = os.path.join(active, "platform")  # subir a arvore a partir de um subdir
+legacy = mk("legacy-setup", {"framework": "bulletproof", "version": "0.1", "tiers": [1, 2]})
+plain = mk("plain-project")  # no .framework-version
+subdir = os.path.join(active, "platform")  # climb the tree from a subdir
 os.makedirs(subdir, exist_ok=True)
-# gerido active com layers [1,2] mas um sinal de D1 novo -> drift de capacidade
+# managed active with layers [1,2] but a new D1 signal -> capability drift
 capdrift = mk("managed-cap-drift", {"framework": "bulletproof", "version": "0.3",
              "plugin": "bulletproof", "status": "active", "layers": [1, 2], "stacks": ["node"]})
 with open(os.path.join(capdrift, "wrangler.toml"), "w") as f:
@@ -60,41 +60,41 @@ def run_guide(cwd):
                        capture_output=True, text=True)
     return p.returncode, p.stdout.strip()
 
-print("\n[1] Porta (fv.py)")
-rc, out = run_fv(boot);    check("gerido bootstrapping -> porta ABERTA (rc0)", rc == 0 and "OPEN" in out)
-rc, out = run_fv(active);  check("gerido active -> porta ABERTA (rc0)", rc == 0 and "OPEN" in out)
-rc, out = run_fv(legacy);  check("legado FA (v0.1, sem marca) -> porta FECHADA (rc1)", rc == 1 and "CLOSED" in out)
-rc, out = run_fv(plain);   check("sem .framework-version -> porta FECHADA (rc1)", rc == 1 and "CLOSED" in out)
-rc, out = run_fv(subdir);  check("subdir platform/ -> sobe a arvore, porta ABERTA (rc0)", rc == 0 and "OPEN" in out)
+print("\n[1] Gate (fv.py)")
+rc, out = run_fv(boot);    check("managed bootstrapping -> gate OPEN (rc0)", rc == 0 and "OPEN" in out)
+rc, out = run_fv(active);  check("managed active -> gate OPEN (rc0)", rc == 0 and "OPEN" in out)
+rc, out = run_fv(legacy);  check("legacy setup (v0.1, no marker) -> gate CLOSED (rc1)", rc == 1 and "CLOSED" in out)
+rc, out = run_fv(plain);   check("no .framework-version -> gate CLOSED (rc1)", rc == 1 and "CLOSED" in out)
+rc, out = run_fv(subdir);  check("subdir platform/ -> climbs the tree, gate OPEN (rc0)", rc == 0 and "OPEN" in out)
 
-print("\n[2] Guia (framework-guide.py)")
+print("\n[2] Guide (framework-guide.py)")
 rc, out = run_guide(boot)
 ok = rc == 0 and out != "" and "green" in out and "framework-init" in out
-check("bootstrapping -> avisa p/ primeiro verde + framework-init", ok)
+check("bootstrapping -> warns to get the first green + framework-init", ok)
 try:
     j = json.loads(out); has_ctx = "additionalContext" in j.get("hookSpecificOutput", {})
 except Exception:
     has_ctx = False
-check("bootstrapping -> output e' JSON valido de SessionStart", has_ctx)
+check("bootstrapping -> output is valid SessionStart JSON", has_ctx)
 
 rc, out = run_guide(active)
 ok = (rc == 0 and "policing" in out and "python" in out and "drift" not in out
       and "new capability" not in out)
-check("active (stack bate certo) -> Exit Lock a policiar, sem avisos", ok)
+check("active (stack matches) -> Exit Lock policing, no warnings", ok)
 
 rc, out = run_guide(drift)
 ok = rc == 0 and "Stack drift" in out and "node" in out
-check("active + manifesto de stack nao declarado -> drift de stack (node)", ok)
+check("active + undeclared stack manifest -> stack drift (node)", ok)
 
 rc, out = run_guide(capdrift)
 ok = rc == 0 and "new capability" in out and "3" in out
-check("active + capacidade nova (D1) -> avisa camada 3 por ligar", ok)
+check("active + new capability (D1) -> warns layer 3 is not wired up", ok)
 
 rc, out = run_guide(plain)
-check("nao-gerido (sem marca) -> SILENCIO total (sem output, rc0)", rc == 0 and out == "")
+check("unmanaged (no marker) -> total SILENCE (no output, rc0)", rc == 0 and out == "")
 
 rc, out = run_guide(legacy)
-check("legado FA -> SILENCIO total (o plugin ignora-o, rc0)", rc == 0 and out == "")
+check("legacy setup -> total SILENCE (the plugin ignores it, rc0)", rc == 0 and out == "")
 
 shutil.rmtree(root, ignore_errors=True)
 n_pass = sum(1 for _, c in results if c)
