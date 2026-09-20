@@ -1,0 +1,47 @@
+name: tests
+
+# The README says the plugin needs nothing but python3, git and bash, on macOS and Linux.
+# This is where that claim gets checked, on every push: a clean checkout, no author's
+# machine, the oldest supported Python and the newest.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: ${{ matrix.os }} / python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.9" }
+          - { os: ubuntu-latest, python: "3.x" }
+          - { os: macos-latest, python: "3.x" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Manifests are valid JSON
+        run: |
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
+            python3 -c 'import json, sys; json.load(open(sys.argv[1])); print("ok", sys.argv[1])' "$f"
+          done
+      - name: Scripts parse
+        run: |
+          python3 -m py_compile scripts/*.py
+          for f in scripts/*.sh; do bash -n "$f"; done
+      - name: Test suite
+        run: |
+          fail=0
+          for t in tests/test_*.py; do
+            echo "::group::$t"
+            python3 "$t" || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail
