@@ -62,8 +62,8 @@ def check_push(args, directory, protected):
     if "--dry-run" in args or "-n" in args:
         return
     if any(a in PUSH_EVERYTHING for a in args):
-        ask("Este `git push` empurra todos os branches, incluindo `%s` -> deploy da PRODUCAO. "
-            "Autorizas publicar?" % protected)
+        ask("This `git push` pushes every branch, including `%s`, which deploys to PRODUCTION. "
+            "Approve publishing?" % protected)
 
     # git push [<repositorio> [<refspec>...]] -- o 1.o nao-flag e' o remote, o resto refspecs.
     positional, skip = [], False
@@ -83,7 +83,8 @@ def check_push(args, directory, protected):
         dst = current_branch(directory)
         if dst and dst != protected and dst != "HEAD":
             return
-        ask("Este `git push` vai (ou pode ir) para `%s` -> deploy da PRODUCAO. Autorizas publicar?" % protected)
+        ask("This `git push` goes (or may go) to `%s`, which deploys to PRODUCTION. "
+            "Approve publishing?" % protected)
 
     for spec in refspecs:
         spec = spec.lstrip("+")
@@ -92,7 +93,8 @@ def check_push(args, directory, protected):
             dst = current_branch(directory)
         dst = re.sub(r"^refs/heads/", "", dst)
         if not dst or dst == protected:
-            ask("Este `git push` publica em `%s` -> deploy da PRODUCAO. Autorizas publicar?" % protected)
+            ask("This `git push` publishes to `%s`, which deploys to PRODUCTION. "
+                "Approve publishing?" % protected)
 
 
 def main():
@@ -115,14 +117,14 @@ def main():
         # Deploy manual (wrangler deploy, vercel, ...) -> ask.
         for dc in dep.get("deploy_cmds", []):
             if cmdparse.has_sequence(toks, dc.split()):
-                ask("`%s` publica diretamente em producao. Regra do projeto: a tua aprovacao "
-                    "antes de qualquer coisa ir a producao. Autorizas publicar?" % dc)
+                ask("`%s` publishes straight to production. Project rule: nothing goes to "
+                    "production without your approval. Approve publishing?" % dc)
 
         # gh pr merge pode fundir para o branch protegido -> ask.
         prog, args = cmdparse.program(toks)
         if prog == "gh" and args[:2] == ["pr", "merge"]:
-            ask("`gh pr merge` pode fundir para `%s` (deploy automatico da producao). "
-                "Autorizas o merge?" % protected)
+            ask("`gh pr merge` may merge into `%s`, which auto-deploys to production. "
+                "Approve the merge?" % protected)
 
         sub, gargs, _dirs = cmdparse.git_parts(toks)
         if sub == "push":

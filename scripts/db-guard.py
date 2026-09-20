@@ -79,9 +79,9 @@ def guard_wrangler(text, args):
 
     if words[:1] == ["dev"]:
         if remote:
-            ask("`wrangler dev --remote` liga o servidor local a' BD de PRODUCAO (D1): qualquer "
-                "escrita feita a esse servidor escreve em producao. Para trabalho local usa "
-                "`wrangler dev --local`. Autorizas mesmo assim?")
+            ask("`wrangler dev --remote` connects the local server to the PRODUCTION database "
+                "(D1): any write made through that server is written to production. For local "
+                "work use `wrangler dev --local`. Approve anyway?")
         return
 
     if words[:1] != ["d1"]:
@@ -90,19 +90,19 @@ def guard_wrangler(text, args):
 
     # Sempre remotos (nao existe versao local): destroem ou sobrescrevem a producao.
     if sub[:1] == ["delete"]:
-        ask("`wrangler d1 delete` APAGA a base de dados de PRODUCAO inteira (D1). Autorizas?")
+        ask("`wrangler d1 delete` DELETES the entire PRODUCTION database (D1). Approve?")
     if sub[:2] == ["time-travel", "restore"]:
-        ask("`wrangler d1 time-travel restore` repoe a BD de PRODUCAO (D1) num ponto anterior, "
-            "sobrescrevendo o estado atual. Autorizas?")
+        ask("`wrangler d1 time-travel restore` rolls the PRODUCTION database (D1) back to an "
+            "earlier point, overwriting its current state. Approve?")
 
     if not remote:
         return  # D1 local (dev) -> passa
     if sub[:2] == ["migrations", "apply"]:
-        ask("`wrangler d1 migrations apply --remote` altera a BD de PRODUCAO (D1). Autorizas?")
+        ask("`wrangler d1 migrations apply --remote` changes the PRODUCTION database (D1). Approve?")
     if sub[:1] == ["execute"]:
         if has_flag(args, "--file"):
-            ask("`wrangler d1 execute --remote --file` corre SQL de um ficheiro na BD de "
-                "PRODUCAO (D1, nao classificavel). Autorizas?")
+            ask("`wrangler d1 execute --remote --file` runs SQL from a file against the "
+                "PRODUCTION database (D1); the guard cannot tell what that SQL does. Approve?")
         sql = None
         for i, a in enumerate(args):
             if a == "--command" and i + 1 < len(args):
@@ -110,9 +110,10 @@ def guard_wrangler(text, args):
             elif a.startswith("--command="):
                 sql = a.split("=", 1)[1]
         if sql is None:
-            ask("`wrangler d1 execute --remote` na BD de PRODUCAO (D1, SQL nao reconhecido). Autorizas?")
+            ask("`wrangler d1 execute --remote` runs against the PRODUCTION database (D1), and "
+                "the guard could not find the SQL to check it. Approve?")
         if is_write_sql(sql):
-            ask("Escrita na BD de PRODUCAO (D1, --remote). Autorizas esta operacao?")
+            ask("This writes to the PRODUCTION database (D1, --remote). Approve this operation?")
 
 
 def drizzle_targets_remote(directory):
@@ -142,8 +143,10 @@ def guard_drizzle(args, directory):
     if not drizzle_targets_remote(directory):
         return
     if words[0] == "studio":
-        ask("`drizzle-kit studio` abre um editor ligado a' BD de PRODUCAO (D1, driver d1-http). Autorizas?")
-    ask("`drizzle-kit %s` altera a BD de PRODUCAO (D1, driver d1-http no drizzle.config). Autorizas?" % words[0])
+        ask("`drizzle-kit studio` opens an editor connected to the PRODUCTION database (D1, "
+            "through the d1-http driver). Approve?")
+    ask("`drizzle-kit %s` changes the PRODUCTION database (D1: the drizzle config uses the "
+        "d1-http driver). Approve?" % words[0])
 
 
 def guard_bash(cmd, cwd):
@@ -171,7 +174,8 @@ def guard_mcp(tool, tool_input):
         if not D1_IN_INPUT.search(blob):
             return
         if WRITE_KW.search(blob) or API_WRITE.search(blob):
-            ask("'%s' vai alterar a BD de PRODUCAO (D1) atraves da API da Cloudflare. Autorizas?" % op)
+            ask("'%s' is about to change the PRODUCTION database (D1) through the Cloudflare "
+                "API. Approve?" % op)
         return  # leitura de D1 -> passa
 
     if "list" in lop or "get" in lop:
@@ -181,8 +185,8 @@ def guard_mcp(tool, tool_input):
                or (tool_input or {}).get("command") or "")
         if not is_write_sql(sql):
             return
-        ask("Escrita na BD de PRODUCAO (D1, via MCP '%s'). Autorizas?" % op)
-    ask("'%s' toca a BD de PRODUCAO (D1). Autorizas?" % op)
+        ask("This writes to the PRODUCTION database (D1, through the MCP tool '%s'). Approve?" % op)
+    ask("'%s' touches the PRODUCTION database (D1). Approve?" % op)
 
 
 def main():
