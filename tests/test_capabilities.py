@@ -75,6 +75,23 @@ check("folder marker three folders down (a/b/c/migrations/)",
 check("and the depth limit still holds one level further down",
       not cap.detect(mk("too-deep", {"a/b/c/d/migrations/0001_init.sql": "x\n"}))[0]["db"])
 
+print("\n[8c] a database the guard does not know is detected, but never claimed as guarded")
+# covers: scripts/capabilities.py detect/layers_for -- the database guard only knows Cloudflare
+# D1. A prisma/supabase/migrations signal used to switch layer 3 on as if it were guarded.
+caps, sig = cap.detect(mk("pg", {"prisma/schema.prisma": "datasource db {}\n", "app.ts": "x"}))
+check("the database is still detected (db)", caps["db"])
+check("but it is not a guarded one (db_d1 is False)", not caps["db_d1"])
+check("so on its own it does not switch layer 3 on", cap.layers_for(caps) == [1, 2])
+caps, _ = cap.detect(mk("pg-vercel", {"prisma/schema.prisma": "x\n", "vercel.json": "{}\n"}))
+check("with a deploy signal, layer 3 is on (for the deploy guard)", cap.layers_for(caps) == [1, 2, 3])
+caps, _ = cap.detect(mk("d1", {"wrangler.toml": "[[d1_databases]]\nbinding = 'DB'\n"}))
+check("Cloudflare D1 is the guarded kind (db_d1 is True)", caps["db"] and caps["db_d1"])
+
+print("\n[8d] vercel.json is looked for as deep as every other marker")
+# covers: scripts/capabilities.py detect -- vercel.json alone was searched two levels down
+check("apps/web/site/vercel.json -> deploy",
+      cap.detect(mk("vc-deep", {"apps/web/site/vercel.json": "{}\n"}))[0]["deploy_sensitive"])
+
 print("\n[9] real-world shape: a monorepo with the worker two levels down (api + frontend)")
 # The layout of the first project that adopted the plugin, rebuilt as a fixture so the
 # proof runs on any machine: nothing at the root, a Cloudflare Worker with D1 and drizzle

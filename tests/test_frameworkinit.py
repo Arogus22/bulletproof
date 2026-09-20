@@ -60,6 +60,18 @@ check("layers [1,2,3]", fv.get("layers") == [1, 2, 3])
 check("config.deploy present", "deploy" in fv.get("config", {}))
 check("config.prod_db kind=d1", fv.get("config", {}).get("prod_db", {}).get("kind") == "d1")
 
+print("\n[2a] a database the guard does not know: no prod_db block, and the report says so")
+# covers: scripts/framework-init.py build_config/main -- it used to write prod_db {"kind": "d1"}
+# for ANY database signal, so a Postgres project was told its database writes were guarded.
+d = mkproj("pg", {"prisma/schema.prisma": "datasource db {}\n", "vercel.json": "{}\n"})
+rc, out = run_init(d)
+fvpg = read_fv(d)
+check("layer 3 on (there is a deploy to guard)", fvpg.get("layers") == [1, 2, 3])
+check("config.deploy written", "deploy" in fvpg.get("config", {}))
+check("NO config.prod_db: nothing here would guard that database", "prod_db" not in fvpg.get("config", {}))
+check("and the report says it out loud (NOT guarded)", "NOT guarded" in out)
+check("the D1 project of [2] got no such warning", "NOT guarded" not in run_init(mkproj("cf2", {"api/wrangler.toml": "[[d1_databases]]\n"}))[1])
+
 print("\n[2b] the code_re it writes is the Exit Lock's own default (one source of truth)")
 # covers: scripts/framework-init.py build_config -- a second, narrower copy of the default
 # used to be written here, and config.code_re overrides the guard's default.

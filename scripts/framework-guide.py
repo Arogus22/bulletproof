@@ -35,8 +35,20 @@ def message(fvdata, root):
     parts = ["Active layers: %s. Exit Lock policing: a 'git commit' that touches code needs "
              "a green from /bulletproof:testar." % layers]
     if 3 in layers:
-        parts.append("Production guards (layer 3) are on: publishing and writing to the "
-                     "production database ask for your approval.")
+        # Announce only what the config really guards. Saying "the database asks for
+        # approval" in a project with no database guard is worse than saying nothing.
+        cfg = fvdata.get("config") if isinstance(fvdata.get("config"), dict) else {}
+        guarded = []
+        if cfg.get("deploy"):
+            guarded.append("publishing")
+        if cfg.get("prod_db"):
+            guarded.append("writing to the production database (Cloudflare D1)")
+        if guarded:
+            parts.append("Production guards (layer 3) are on: %s %s for your approval." %
+                         (" and ".join(guarded), "ask" if len(guarded) > 1 else "asks"))
+        else:
+            parts.append("Layer 3 is on but has no config.deploy and no config.prod_db, so "
+                         "nothing is guarded. Run /bulletproof:framework-init.")
     if stacks:
         parts.append("Stacks: %s." % ", ".join(stacks))
     # stack drift: has a manifest of an undeclared stack shown up?

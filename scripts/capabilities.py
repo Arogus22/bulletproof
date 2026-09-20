@@ -44,7 +44,9 @@ def _walk_find(root, names, depth=3):
 
 def detect(root):
     """Returns (caps: dict[str,bool], signals: list[str])."""
-    caps = {"db": False, "deploy_sensitive": False, "staging": False}
+    # db = the project has a production database; db_d1 = it is one the database guard
+    # actually knows (Cloudflare D1). Only the second may be announced as guarded.
+    caps = {"db": False, "db_d1": False, "deploy_sensitive": False, "staging": False}
     signals = []
 
     for w in _walk_find(root, ["wrangler.toml", "wrangler.jsonc", "wrangler.json"]):
@@ -54,6 +56,7 @@ def detect(root):
         content = _read(w)
         if re.search(r"d1_databases", content, re.I):
             caps["db"] = True
+            caps["db_d1"] = True
             signals.append("db: Cloudflare D1 (%s)" % rel)
         if re.search(r"\[env\.staging\]|\[env\.preview\]", content, re.I):
             caps["staging"] = True
@@ -66,7 +69,7 @@ def detect(root):
             signals.append("db: %s" % marker)
             break
 
-    if _walk_find(root, ["vercel.json"], depth=2):
+    if _walk_find(root, ["vercel.json"]):
         caps["deploy_sensitive"] = True
         signals.append("deploy: Vercel (vercel.json)")
 
@@ -87,11 +90,13 @@ def detect(root):
 
 
 def layers_for(caps):
-    """Capabilities -> the layers that are ACTIVE today. 1-2 always; 3 if there is a
-    sensitive deploy or a production database. (Layer 4, staging-first, and layer 5,
+    """Capabilities -> the layers that are ACTIVE today. 1-2 always; 3 if there is
+    something layer 3 can really guard: a sensitive deploy, or a Cloudflare D1 database.
+    A database of another kind does not switch it on: a layer that is "on" with nothing
+    behind it is a promise the plugin cannot keep. (Layer 4, staging-first, and layer 5,
     invariants, are planned and not switched on yet.)"""
     layers = [1, 2]
-    if caps.get("db") or caps.get("deploy_sensitive"):
+    if caps.get("db_d1") or caps.get("deploy_sensitive"):
         layers.append(3)
     return layers
 

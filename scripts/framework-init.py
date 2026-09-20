@@ -49,7 +49,7 @@ def build_config(caps):
     if caps.get("deploy_sensitive"):
         cfg["deploy"] = {"protected_branch": "main",
                          "deploy_cmds": ["wrangler deploy", "wrangler pages deploy", "vercel"]}
-    if caps.get("db"):
+    if caps.get("db_d1"):  # the only database the guard knows; never claim another kind
         cfg["prod_db"] = {"kind": "d1", "guard_remote_only": True}
     return cfg
 
@@ -123,6 +123,9 @@ def main(argv):
         print("  detected capabilities:")
         for s in signals:
             print("   + %s" % s)
+    if caps.get("db") and not caps.get("db_d1"):
+        print("  NOTE: a database was detected, but the database guard only knows Cloudflare "
+              "D1 today. Writes to this database are NOT guarded.")
     qs = capmod.confirm_questions(caps)
     if qs:
         print("  CONFIRM (what I cannot see from the repository):")

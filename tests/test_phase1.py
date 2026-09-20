@@ -90,6 +90,22 @@ rc, out = run_guide(capdrift)
 ok = rc == 0 and "new capability" in out and "3" in out
 check("active + new capability (D1) -> warns layer 3 is not wired up", ok)
 
+# covers: scripts/framework-guide.py message -- the Guide used to announce "publishing and
+# writing to the production database ask for your approval" whenever layer 3 was on, even
+# with no database guard configured. It now says only what the config really guards.
+def l3(name, config):
+    return mk(name, {"framework": "bulletproof", "version": "0.3", "plugin": "bulletproof",
+                     "status": "active", "layers": [1, 2, 3], "stacks": [], "config": config})
+DEP = {"protected_branch": "main", "deploy_cmds": ["vercel"]}
+rc, out = run_guide(l3("l3-deploy-only", {"deploy": DEP}))
+check("layer 3, deploy only -> announces publishing, does NOT claim the database",
+      rc == 0 and "publishing" in out and "database" not in out)
+rc, out = run_guide(l3("l3-both", {"deploy": DEP, "prod_db": {"kind": "d1"}}))
+check("layer 3, deploy + D1 -> announces both, and names Cloudflare D1",
+      rc == 0 and "publishing" in out and "Cloudflare D1" in out)
+rc, out = run_guide(l3("l3-empty", {}))
+check("layer 3 with nothing configured -> says nothing is guarded", rc == 0 and "nothing is guarded" in out)
+
 rc, out = run_guide(plain)
 check("unmanaged (no marker) -> total SILENCE (no output, rc0)", rc == 0 and out == "")
 
