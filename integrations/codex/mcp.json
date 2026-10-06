@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "approval": {
+      "command": "python3",
+      "args": [
+        "scripts/approval-server.py"
+      ],
+      "cwd": ".",
+      "env_vars": [
+        "CODEX_HOME",
+        "BULLETPROOF_STATE",
+        "BULLETPROOF_LEDGER"
+      ]
+    }
+  }
+}

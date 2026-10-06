@@ -29,19 +29,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import fv as gate
 import cmdparse
+from approval_policy import ask, claude_main
 
 # `git push` flags that take a value next (so the value is not read as the remote)
 PUSH_VALUE_FLAGS = {"-o", "--push-option", "--repo", "--receive-pack", "--exec",
                     "--recurse-submodules", "--signed"}
 # flags that push EVERY branch (so, the protected one as well)
 PUSH_EVERYTHING = {"--all", "--mirror", "--branches"}
-
-
-def ask(reason):
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PreToolUse", "permissionDecision": "ask",
-        "permissionDecisionReason": reason}}))
-    sys.exit(0)
 
 
 def current_branch(directory):
@@ -101,14 +95,9 @@ def check_push(args, directory, protected):
                 "Approve publishing?" % protected)
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)  # no payload -> does not step in
-
+def evaluate(data):
     if data.get("tool_name") != "Bash":
-        sys.exit(0)
+        return
     cmd = (data.get("tool_input") or {}).get("command") or data.get("command") or ""
     cwd = data.get("cwd") or os.getcwd()
 
@@ -136,4 +125,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    claude_main(evaluate)

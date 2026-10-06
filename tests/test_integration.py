@@ -34,7 +34,7 @@ def resolve(tok):
     return tok.replace("${CLAUDE_PLUGIN_ROOT}", PLUGIN)
 
 def hooks_for(event, tool=None):
-    """Extracts from hooks.json the commands (command+args resolved) of an event,
+    """Extracts from hooks.json the commands (shell command resolved) of an event,
     filtering by matcher the way CC would."""
     cfg = json.load(open(HOOKS))["hooks"].get(event, [])
     out = []
@@ -43,12 +43,12 @@ def hooks_for(event, tool=None):
         if tool is not None and matcher not in (None, "", tool) and not re.search(matcher, tool):
             continue
         for h in group.get("hooks", []):
-            out.append([h["command"]] + [resolve(a) for a in h.get("args", [])])
+            out.append(h["command"])
     return out
 
 def run_event(event, payload, tool=None):
     argv = hooks_for(event, tool)[0]
-    p = subprocess.run(argv, input=json.dumps(payload), capture_output=True, text=True, env=env())
+    p = subprocess.run(argv, shell=True, input=json.dumps(payload), capture_output=True, text=True, env=env())
     return p.returncode, p.stdout, p.stderr
 
 def mk_managed_repo():

@@ -29,7 +29,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Manifests are valid JSON
         run: |
-          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json .agents/plugins/marketplace.json hooks/hooks.json hooks/codex.json integrations/codex/mcp.json; do
             python3 -c 'import json, sys; json.load(open(sys.argv[1])); print("ok", sys.argv[1])' "$f"
           done
       - name: Scripts parse

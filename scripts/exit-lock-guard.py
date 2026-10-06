@@ -29,8 +29,9 @@ sys.path.insert(0, HERE)
 import fv as gate  # the marker gate
 import cmdparse
 import codefp
+import runtime
 
-STATE_BASE = os.environ.get("BULLETPROOF_STATE") or os.path.expanduser("~/.claude/state")
+STATE_BASE = runtime.state_base()
 
 
 def git(args, cwd):
@@ -155,6 +156,7 @@ def main():
             "BLOCKED (Exit Lock): this commit touches code that is not proven green. "
             "Run /bulletproof:testar; if it passes, it stamps the green and the commit goes "
             "through. If you already tested and changed the code afterwards, test again."
+            .replace("/bulletproof:testar", runtime.workflow("testar"))
         )
         sys.exit(2)
 

@@ -5,8 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/framework-guide.py"],
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/framework-guide.py\"",
             "timeout": 15,
             "statusMessage": "Bulletproof: classifying the project..."
           }
@@ -19,8 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/exit-lock-guard.py"],
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/exit-lock-guard.py\"",
             "timeout": 10,
             "statusMessage": "Bulletproof: checking the green stamp..."
           }
@@ -31,8 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/deploy-guard.py"],
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/deploy-guard.py\"",
             "timeout": 10,
             "statusMessage": "Bulletproof: deploy guard (layer 3)..."
           }
@@ -43,8 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py"],
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py\"",
             "timeout": 10,
             "statusMessage": "Bulletproof: production database guard (layer 3)..."
           }
@@ -55,8 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py"],
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/db-guard.py\"",
             "timeout": 10,
             "statusMessage": "Bulletproof: database guard for MCP tools (layer 3)..."
           }

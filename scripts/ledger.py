@@ -23,11 +23,12 @@ import datetime
 import hashlib
 import json
 import os
+import runtime
 
 
 def _ledger_path():
     return os.environ.get("BULLETPROOF_LEDGER") or \
-        os.path.expanduser("~/.claude/state/bulletproof/ledger.jsonl")
+        os.path.join(runtime.state_base(), "bulletproof", "ledger.jsonl")
 
 
 def _incident(project, seed):

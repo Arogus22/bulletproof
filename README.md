@@ -1,6 +1,8 @@
 # Bulletproof
 
-Test discipline for Claude Code, enforced by hooks instead of by the model's goodwill.
+Test discipline for Claude Code and Codex, enforced by hooks in adopted projects.
+
+**Version 0.4.0:** install from the GitHub marketplace below. See [installation and lifecycle](docs/installation.md), [verification](docs/verification.md), and the separate [report-only audit proposal](docs/report-only-audit-proposal.md).
 
 [![tests](https://github.com/Arogus22/bulletproof/actions/workflows/tests.yml/badge.svg)](https://github.com/Arogus22/bulletproof/actions/workflows/tests.yml)
 
@@ -8,17 +10,26 @@ Test discipline for Claude Code, enforced by hooks instead of by the model's goo
 
 A coding agent says "done" without proof, and commits code that does not work. You can write "always run the tests before committing" in `CLAUDE.md`, and it will be followed most of the time. Most of the time is the problem: an instruction is a suggestion to the model, and under a long task or a tight context it gets skipped.
 
-A hook is not a suggestion. It runs outside the model, every time, and the model cannot talk its way past it. Bulletproof turns three rules into hooks:
+A loaded, trusted hook runs outside the model. Its coverage and failure behavior still depend on the host runtime; installation alone proves neither. Bulletproof implements three project rules:
 
 1. **Code is only committed after a green test run of that exact code.** Not "tests passed earlier today": the code being committed has to be the code that was tested.
 2. **The agent is told the rules of the project when the session starts**, so it works with them instead of discovering them by being blocked.
-3. **Anything that reaches production stops and asks you first.** A deploy, a push to the production branch, a write to the production database.
+3. **Recognized production operations require your decision.** Claude uses its native approval prompt. Codex holds the call and requests consent through a bundled MCP form before one exact retry. This covers configured deploy commands, protected-branch pushes and supported Cloudflare D1 writes.
 
 It does nothing at all in a project until you adopt that project. See [What it does not do](#what-it-does-not-do).
 
 ## Install
 
-In Claude Code:
+For Codex:
+
+```bash
+codex plugin marketplace add Arogus22/bulletproof
+codex plugin add bulletproof@bulletproof
+```
+
+For local development, build a clean package and register its directory as described in [installation](docs/installation.md). Review and trust its two hooks through `/hooks`, then start a new session. Invoke `$bulletproof:framework-init` and `$bulletproof:testar`. The bundled MCP consent server must also start successfully for production approvals. No per-session plugin flags or edits to installed scripts are needed.
+
+In Claude Code (existing installation flow):
 
 ```
 /plugin marketplace add Arogus22/bulletproof
@@ -154,7 +165,7 @@ Two details keep it from getting in the way:
 - **Only code counts.** The stamp is a fingerprint of the code files that differ from the last commit, by content. Updating the changelog or the docs between the test run and the commit does not invalidate the green, and a commit that touches only docs or config is never policed.
 - **New files count.** `git add -A && git commit` with a brand new source file is checked like any other code, even though git has not seen that file yet when the hook runs.
 
-Every block, every red and every green is appended to a local ledger (`~/.claude/state/bulletproof/ledger.jsonl`), so you can later count how many times it actually saved you.
+Exit Lock blocks and test results are appended to a local ledger (`~/.claude/state/bulletproof/ledger.jsonl` for Claude, `$CODEX_HOME/state/bulletproof/ledger.jsonl` for Codex, defaulting to `~/.codex/state/`), so you can later count how many times it actually saved you.
 
 ## The layers
 
@@ -164,7 +175,7 @@ Each project switches on the layers it needs. They are listed in `.framework-ver
 |---|---|---|---|
 | **1** | `/bulletproof:testar`. Before running, it makes the agent check whether the change is covered by a test and write the missing one (testing what the code should do, not photographing what it does; a behaviour that looks wrong becomes a red test reported as a bug candidate). Then it runs every test suite. | Never blocks. Green stamps the code. Red is recorded and nothing is stamped. | |
 | **2** | **Exit Lock** (on every Bash command) and the **Guide** (at session start). | `git commit` that touches code with no green stamp for that exact code. Exit code 2: the commit does not run, and the agent is told why and what to do. | Commits of docs and config. Everything while the project is still `bootstrapping`. Any command that is not a commit. |
-| **3** | **Production guards.** Only on when the project deploys or has a production database. They never refuse: they hand the decision to you, with a prompt that says what is about to happen. | **Deploy:** `git push` that reaches the protected branch (`main` by default), including an implicit push from that branch, `--all`, `--mirror`; `gh pr merge`; any command in `deploy_cmds` (`wrangler deploy`, `wrangler pages deploy`, `vercel`). **Database (Cloudflare D1):** `wrangler d1 execute --remote` with a write or with `--file`, `migrations apply --remote`, `d1 delete`, `time-travel restore`, `wrangler dev --remote`, `drizzle-kit push / migrate / studio` when the drizzle config uses the `d1-http` driver, and D1 writes through MCP tools. | Pushes to work branches, `git push --dry-run`, local D1 (no `--remote`), a pure `SELECT` against production, D1 reads and listings. |
+| **3** | **Production guards.** Only on when the project deploys or has a production database. Claude asks natively. Codex holds the original call until a human accepts a specific, short-lived MCP confirmation, then permits one retry through the original tool. | **Deploy:** `git push` that reaches the protected branch (`main` by default), including an implicit push from that branch, `--all`, `--mirror`; `gh pr merge`; any command in `deploy_cmds` (`wrangler deploy`, `wrangler pages deploy`, `vercel`). **Database (Cloudflare D1):** `wrangler d1 execute --remote` with a write or with `--file`, `migrations apply --remote`, `d1 delete`, `time-travel restore`, `wrangler dev --remote`, `drizzle-kit push / migrate / studio` when the drizzle config uses the `d1-http` driver, and D1 writes through MCP tools. | Pushes to work branches, `git push --dry-run`, local D1 (no `--remote`), a pure `SELECT` against production, D1 reads and listings. |
 | 4, 5 | Staging first, and a guard against known regressions. | Planned, not built yet. | |
 
 An entry in `deploy_cmds` matches whenever those words run as a command, whatever the flags: `wrangler deploy --dry-run` and `vercel --version` ask too. Asking once too often is the side the guards err on. If `vercel` is too noisy for you, replace it with the forms you publish with (`vercel deploy`, `vercel --prod`).
@@ -188,7 +199,7 @@ This writes to the PRODUCTION database (D1, --remote). Approve this operation?
 ## What it does not do
 
 - **It does not touch a project you have not adopted.** Every hook first looks for a `.framework-version` with `"plugin": "bulletproof"` in it, in the working directory or above it. No file, or a file without that marker, and the hook exits at once: no output, no block, no prompt. Installing the plugin changes nothing in your other projects.
-- **It does not refuse deploys or database writes.** Layer 3 asks. You answer.
+- **Production consent differs by platform.** Claude uses native `ask`. Codex denies the pending attempt, creates a review request, and permits one retry only after MCP form acceptance. Unsupported/disabled elicitation, rejection, cancellation or expiration leaves the call blocked. See [the consent contract](docs/installation.md#production-consent).
 - **It does not run your tests on commit.** The Exit Lock checks for a stamp, which takes milliseconds. Tests run when `/bulletproof:testar` is called.
 - **It does not judge how good your tests are.** The coverage check in `/bulletproof:testar` is an instruction to the agent, not a hook. A project with one trivial test gets a green stamp.
 - **It is not a security boundary.** It reads the commands the agent writes. It stops an honest agent making an honest mistake, which is the common case. It does not stop someone who sets out to get around it (a script that commits from inside another program, for instance).
@@ -204,6 +215,8 @@ This writes to the PRODUCTION database (D1, --remote). Approve this operation?
 | release a project completely | delete `.framework-version`, or remove the `"plugin": "bulletproof"` line from it |
 | switch the plugin off everywhere | `claude plugin disable bulletproof@bulletproof` (and `enable` to bring it back) |
 | remove it | `claude plugin uninstall bulletproof@bulletproof` |
+
+For Codex, use `codex plugin remove bulletproof@bulletproof` to uninstall; disable via the plugin UI or `[plugins."bulletproof@bulletproof"] enabled = false` in Codex config. See [update/removal details](docs/installation.md).
 
 Changes to `.framework-version` take effect on the next command. Disabling or uninstalling takes effect on the next session.
 
@@ -243,11 +256,11 @@ Changes to `.framework-version` take effect on the next command. Disabling or un
 
 **`tests` is run through a shell, and the file is committed.** Treat a change to `.framework-version` the way you treat a change to a CI script: review it in pull requests. Whoever can edit it decides what runs on your machine the next time you call `/bulletproof:testar`.
 
-Everything else the plugin keeps lives outside your repository, in `~/.claude/state/` (the green stamps and the ledger). Set `BULLETPROOF_STATE` and `BULLETPROOF_LEDGER` to move them.
+State lives outside the repository. Claude uses `${CLAUDE_CONFIG_DIR:-~/.claude}/state`; Codex uses `${CODEX_HOME:-~/.codex}/state`. Each contains `exit-lock/<project-hash>/last-green` and `bulletproof/ledger.jsonl`. Codex also stores short-lived requests in `bulletproof/production/`. `BULLETPROOF_STATE` moves the state base (including the default ledger); `BULLETPROOF_LEDGER` overrides only the ledger. Stamps are intentionally not shared between platforms.
 
 ## Requirements
 
-- Claude Code with plugin support
+- Claude Code with plugin support, or Codex with marketplace plugins, trusted command hooks and MCP form elicitation (verified against Codex CLI 0.160.0)
 - Python 3.9 or newer, on the `PATH` as `python3` (standard library only, nothing to `pip install`)
 - git
 - bash
@@ -259,10 +272,12 @@ macOS and Linux. The test suite runs on both, on Python 3.9 and the current 3.x,
 Plain Python scripts, no test framework, no network, nothing written outside temporary folders:
 
 ```bash
-for t in tests/test_*.py; do python3 "$t" | tail -1; done
+failed=0
+for t in tests/test_*.py; do python3 "$t" || failed=1; done
+exit "$failed"
 ```
 
-Each file ends with a line such as `==> 40/40 PASS` and exits non-zero on any failure.
+Legacy suites print a result such as `==> 40/40 PASS`; the Codex suite uses `unittest`. Every suite exits non-zero on failure. Native acceptance is separate: see [verification](docs/verification.md).
 
 ## License
 

@@ -1,0 +1,20 @@
+{
+  "name": "bulletproof",
+  "interface": {
+    "displayName": "Bulletproof"
+  },
+  "plugins": [
+    {
+      "name": "bulletproof",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

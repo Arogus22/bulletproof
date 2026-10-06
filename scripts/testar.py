@@ -120,8 +120,12 @@ def main(argv):
         return 1
 
     # green: promote to 'active' on the 1st green (arms the Exit Lock), stamp via mark-green
+    stamped = subprocess.run(["bash", os.path.join(HERE, "mark-green.sh"), root])
+    if stamped.returncode:
+        print("testar: tests passed, but the green stamp could not be saved. "
+              "Check state directory permissions; the commit is not unlocked.")
+        return 2
     promoted = promote_to_active(root)
-    subprocess.run(["bash", os.path.join(HERE, "mark-green.sh"), root])
     print("\ntestar: GREEN. Every test suite passed. Green stamped; code commits are "
           "now allowed.")
     if promoted:

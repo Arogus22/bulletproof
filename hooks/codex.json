@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/scripts/codex-hook.py\"",
+            "timeout": 30,
+            "statusMessage": "Bulletproof: checking project rules"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|d1|mcp__.*cloudflare",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/scripts/codex-hook.py\"",
+            "timeout": 30,
+            "statusMessage": "Bulletproof: checking project rules"
+          }
+        ]
+      }
+    ]
+  }
+}

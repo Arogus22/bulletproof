@@ -1,6 +1,6 @@
 {
   "name": "bulletproof",
-  "description": "Test discipline through deterministic hooks: an Exit Lock that blocks `git commit` of code with no green test run, a Guide at session start, and production guards that ask for approval before a deploy or a production database write. Gated by a marker in .framework-version: it only acts in projects adopted by the plugin and ignores every other.",
+  "description": "Test discipline for adopted projects: shared test workflows, commit gates and human confirmation for production operations.",
   "version": "0.4.0",
   "author": {
     "name": "Rafael (Arogus22)",
@@ -16,5 +16,8 @@
     "tdd",
     "guardrails",
     "deploy-safety"
-  ]
+  ],
+  "skills": "./codex-skills/",
+  "hooks": "./hooks/codex.json",
+  "mcpServers": "./integrations/codex/mcp.json"
 }

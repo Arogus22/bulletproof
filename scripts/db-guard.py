@@ -38,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import fv as gate
 import cmdparse
+from approval_policy import ask, claude_main
 
 WRITE_KW = re.compile(r"(?i)\b(insert|update|delete|alter|drop|create|truncate|replace|"
                       r"merge|grant|revoke|reindex|vacuum|attach)\b")
@@ -45,13 +46,6 @@ READ_START = re.compile(r"(?is)^\s*(select|with|explain|pragma)\b")
 # in a generic API call: the methods that change things, on top of write SQL
 API_WRITE = re.compile(r"(?i)\b(DELETE|PUT|PATCH)\b")
 D1_IN_INPUT = re.compile(r"(?i)(/d1/|\bd1[_\s-]?database|\bd1\b)")
-
-
-def ask(reason):
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PreToolUse", "permissionDecision": "ask",
-        "permissionDecisionReason": reason}}))
-    sys.exit(0)
 
 
 def is_write_sql(sql):
@@ -195,11 +189,7 @@ def guard_mcp(tool, tool_input):
     ask("'%s' touches the PRODUCTION database (D1). Approve?" % op)
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
+def evaluate(data):
     cwd = data.get("cwd") or os.getcwd()
     tool = data.get("tool_name", "") or ""
 
@@ -211,4 +201,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    claude_main(evaluate)
