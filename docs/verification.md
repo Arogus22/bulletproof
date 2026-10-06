@@ -5,6 +5,24 @@ Run on 2026-10-06, macOS, Python 3.14.2. The starting repository was v0.3.0,
 The initial checks below preceded publication. Remote installation is a separate
 acceptance step; a successful local package test alone does not prove it.
 
+## GitHub installation acceptance
+
+On 2026-10-06, commit [`cce78dd`](https://github.com/Arogus22/bulletproof/commit/cce78dd49ce7071904a38ab3ea4444c8b04dee4d)
+was pushed to `main`. A fresh temporary Codex profile installed version 0.4.0
+using `codex plugin marketplace add Arogus22/bulletproof` followed by
+`codex plugin add bulletproof@bulletproof`. The downloaded product matched the
+committed source and contained no private migration metadata.
+
+After normal hook review, the test runner from the downloaded installation passed
+**27 native checks**, including discovery and execution of both installed workflows:
+`framework-init` adopted a new synthetic repository, and `testar` ran its test layer
+and unlocked the commit gate. This extends the original 26-check local package proof.
+Model responses and consent-client answers remain scripted test fixtures.
+
+[GitHub Actions for the code commit](https://github.com/Arogus22/bulletproof/actions/runs/37529059711)
+passed on Ubuntu/Python 3.9, Ubuntu/current Python and macOS/current Python. No personal
+plugin installation or downstream application changes were made.
+
 ## Automated suites
 
 - Original ten suites: **290/290 checks pass**, repeated before and after the change.
@@ -18,9 +36,9 @@ acceptance step; a successful local package test alone does not prove it.
 - JSON manifests parse; Python scripts parse with Python 3.9 grammar. Both Codex
   skills pass the skill validator. Native Claude marketplace validation passes.
 
-Python 3.9 grammar validation is not a Python 3.9 runtime test. The CI matrix is
-updated but has not run on these unpublished changes. Linux and other Python
-versions retain the CI definition; they were not rerun locally in this task.
+Python 3.9 grammar validation is supplemented by the successful Python 3.9 CI run
+linked above. The native host acceptance test remains a macOS test; CI on Linux
+covers the isolated Python suites, not a Linux Codex native session.
 
 ## Native Codex: 26 acceptance checks pass
 
@@ -115,8 +133,9 @@ These are real host/runtime tests with synthetic model responses, consent client
 Git destinations and D1 tools. They do not evaluate autonomous model skill-following,
 the desktop application's visual consent UI, real Cloudflare operations, every shell
 spelling, or future runtime versions. Claude interactive 2.1.283 is not covered by the
-SDK worker's 2.1.79 proof. Remote installation/update of 0.4.0 remains untested until
-publication; local package installation, removal and replacement were exercised.
+SDK worker's 2.1.79 proof. Fresh GitHub installation of 0.4.0 is verified above.
+An in-place remote upgrade from an older installed version was not exercised;
+local package removal and replacement were exercised.
 
 Payload tests are reported separately from native proof. Runtime hook timeouts,
 unexpected host errors, command coverage limits and editable local state remain

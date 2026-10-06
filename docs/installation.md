@@ -112,8 +112,8 @@ codex plugin list
 Verify the resulting version, review changed hooks and open a new session. Local-path
 marketplaces use their local source; for an unpublished replacement, build a new clean
 directory, remove the old plugin/marketplace registration and register the new one.
-Do not edit installed cache files. This procedure was exercised locally; fetching a
-Git version is verified separately in [verification](verification.md).
+Do not edit installed cache files. Local replacement and fresh GitHub installation were exercised; see
+[verification](verification.md). An in-place remote upgrade was not tested.
 
 Disable through the plugin UI or set `enabled = false` under
 `[plugins."bulletproof@bulletproof"]` in Codex config. To uninstall:
